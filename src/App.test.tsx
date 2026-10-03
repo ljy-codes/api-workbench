@@ -11,20 +11,19 @@ afterEach(cleanup);
 describe('中文工作台浏览器预览', () => {
   it('明确仅内存预览且没有伪造响应', () => {
     render(<App />);
+    expect(screen.getByText('EnvDock')).toBeTruthy();
     expect(screen.getByText('仅内存预览，桌面版才可保存和发送')).toBeTruthy();
     expect(screen.getByRole('button', { name: '载入内存示例' })).toBeTruthy();
     expect(screen.queryByText('200 OK')).toBeNull();
   });
-  it('加载示例、编辑 Query，切换接口先确认且保留草稿', async () => {
+  it('加载示例、编辑 Query，预览模式切换接口保留内存草稿且不弹旧确认', async () => {
     render(<App />);
     fireEvent.click(screen.getByRole('button', { name: '载入内存示例' }));
     fireEvent.change(screen.getByLabelText('参数值1'), { target: { value: '2' } });
     fireEvent.click(within(screen.getByRole('complementary')).getByRole('button', { name: /创建用户/ }));
-    expect(await screen.findByRole('dialog', { name: '有尚未保存的修改' })).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '保留草稿并切换' }));
+    expect(screen.queryByRole('dialog', { name: '有尚未保存的修改' })).toBeNull();
     expect(await screen.findByDisplayValue('/users')).toBeTruthy();
     fireEvent.click(within(screen.getByRole('complementary')).getByRole('button', { name: /获取用户列表/ }));
-    fireEvent.click(await screen.findByRole('button', { name: '保留草稿并切换' }));
     expect((await screen.findByLabelText('参数值1') as HTMLInputElement).value).toBe('2');
   });
   it('创建、修改项目与删除关联确认真实可用', async () => {

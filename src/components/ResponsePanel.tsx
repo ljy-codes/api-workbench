@@ -1,9 +1,9 @@
 import { useMemo, useState, type ReactNode } from 'react';
-import { Braces, Check, Clock3, Copy, CornerDownLeft, LoaderCircle } from 'lucide-react';
+import { Braces, Check, Clock3, Copy, CornerDownLeft, LoaderCircle, Trash2 } from 'lucide-react';
 import type { Execution } from '../hooks/useWorkbench';
 import { formatBytes } from '../lib/workspace';
 
-export function ResponsePanel({ execution }: { execution?: Execution }) {
+export function ResponsePanel({ execution, onClear }: { execution?: Execution; onClear?: () => void }) {
   const [tab, setTab] = useState('body');
   const [format, setFormat] = useState('json');
   const [copied, setCopied] = useState(false);
@@ -31,7 +31,7 @@ export function ResponsePanel({ execution }: { execution?: Execution }) {
     return { content, count, capped: count === 1000 };
   }, [body, search]);
   return <section className="response-panel" aria-label="接口响应">
-    <header className="response-heading"><div className="response-title"><CornerDownLeft size={16} /><strong>响应</strong>{execution?.running && <span className="muted"><LoaderCircle className="spin" size={13} />请求进行中</span>}</div>{response && <div className="response-metrics"><span className={response.status < 400 ? 'success-badge' : 'error-badge'}>{response.status} {response.statusText}</span><span><Clock3 size={12} />{response.durationMs} ms</span><span>已接收 {formatBytes(response.sizeBytes)}</span></div>}</header>
+    <header className="response-heading"><div className="response-title"><CornerDownLeft size={16} /><strong>响应</strong>{execution?.running && <span className="muted"><LoaderCircle className="spin" size={13} />请求进行中</span>}</div><div className="response-heading-actions">{response && <div className="response-metrics"><span className={response.status < 400 ? 'success-badge' : 'error-badge'}>{response.status} {response.statusText}</span><span><Clock3 size={12} />{response.durationMs} ms</span><span>已接收 {formatBytes(response.sizeBytes)}</span></div>}{onClear && <button type="button" className="icon-button" aria-label="清除当前响应" title="清除当前接口在当前环境的响应" disabled={!execution || execution.running} onClick={onClear}><Trash2 size={14} /></button>}</div></header>
     {execution && <div className="execution-context"><span>执行环境：<strong>{execution.environment}</strong></span><span>{execution.requestName}</span><code title={execution.id}>ID {execution.id.slice(0, 8)}</code></div>}
     {execution?.cancelRequested && <p className="warning-line">已请求取消；服务端可能仍在执行，此操作不代表回滚。</p>}
     {execution?.error && <div className="error-box" role="alert"><strong>请求未完成</strong><p>{execution.error}</p></div>}

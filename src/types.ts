@@ -1,6 +1,6 @@
 export interface Pair { id: string; key: string; value: string; enabled: boolean }
-export interface Project { id: string; name: string; activeEnvironmentId: string | null }
-export interface Environment { id: string; projectId: string; name: string; isProduction: boolean }
+export interface Project { id: string; name: string; activeEnvironmentId: string | null; color?: string }
+export interface Environment { id: string; projectId: string; name: string; isProduction: boolean; color?: string }
 export interface AuthConfig { kind: "none" | "bearer" | "basic" | "apiKey"; token?: string; username?: string; password?: string; key?: string; value?: string; location?: "header" | "query" }
 export interface FormField { id: string; key: string; value: string; enabled: boolean; kind: "text" | "file" }
 export interface Service { id: string; projectId: string; name: string; headers?: Pair[]; auth?: AuthConfig | null }
@@ -10,7 +10,9 @@ export interface RequestDefinition {
   id: string; serviceId: string; folderId: string | null; name: string; method: string; path: string;
   query: Pair[]; headers: Pair[]; bodyType: "none" | "json" | "text" | "form" | "multipart"; body: string; timeoutMs: number;
   auth?: AuthConfig | null; form?: FormField[];
+  environmentConfigs?: Record<string, RequestConfig>;
 }
+export type RequestConfig = Pick<RequestDefinition, 'query' | 'headers' | 'auth' | 'bodyType' | 'body' | 'form' | 'timeoutMs'>;
 export type VariableScope = "project" | "service" | "environment" | "binding" | "request";
 export interface Variable { id: string; projectId: string; scope: VariableScope; ownerId: string; name: string; value: string; isSecret: boolean }
 export interface Workspace {

@@ -7,6 +7,7 @@ import { demoWorkspace } from './lib/workspace';
 vi.mock('./lib/ipc', () => ({ desktop: true, api: {
   load: vi.fn(), save: vi.fn(), preview: vi.fn(), send: vi.fn(), cancel: vi.fn(),
   exportCurl: vi.fn(), pickFile: vi.fn(), readProjectFile: vi.fn(), writeProjectFile: vi.fn(), backup: vi.fn(),
+  loadResponse: vi.fn(), saveResponse: vi.fn(), clearResponse: vi.fn(), clearResponses: vi.fn(), compactStorage: vi.fn(),
 } }));
 vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({ onCloseRequested: async () => () => {}, destroy: vi.fn() }) }));
 beforeAll(() => {
@@ -17,6 +18,11 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.mocked(api.load).mockResolvedValue(demoWorkspace());
   vi.mocked(api.save).mockImplementation(async w => ({ ...w, revision: w.revision + 1 }));
+  vi.mocked(api.loadResponse).mockResolvedValue(null);
+  vi.mocked(api.saveResponse).mockResolvedValue(undefined);
+  vi.mocked(api.clearResponse).mockResolvedValue(undefined);
+  vi.mocked(api.clearResponses).mockResolvedValue(undefined);
+  vi.mocked(api.compactStorage).mockResolvedValue(undefined);
   vi.mocked(api.preview).mockResolvedValue({ url: 'https://example.com', environmentName: '开发环境', serviceName: '用户服务', isProduction: false, resolvedVariables: [{ name: 'token', value: 'must-not-render', source: 'environment', isSecret: true }, { name: 'page', value: '3', source: 'request', isSecret: false }] });
 });
 afterEach(cleanup);
@@ -59,6 +65,8 @@ describe('0.2 前端联接', () => {
     fireEvent.click(await screen.findByRole('tab', { name: '鉴权' }));
     expect((screen.getByLabelText('Token 变量引用') as HTMLInputElement).value).toBe('{{first}}');
     fireEvent.click(within(screen.getByRole('complementary')).getByRole('button', { name: /创建用户/ }));
+    // Switching identity remounts the editor so unfinished inputs cannot cross requests.
+    fireEvent.click(await screen.findByRole('tab', { name: '鉴权' }));
     expect((screen.getByLabelText('Token 变量引用') as HTMLInputElement).value).toBe('{{second}}');
   });
   it('真实 cURL 解析从对话框导入到当前环境，只生成草稿和新标签', async () => {
@@ -94,13 +102,14 @@ describe('0.2 前端联接', () => {
     expect((within(dialog).getByLabelText('项目 JSON') as HTMLTextAreaElement).value).toBe('invalid');
     expect(api.save).not.toHaveBeenCalled();
   });
-  it('关闭当前标签再从侧栏打开，Query 草稿保持不变', async () => {
+  it('关闭当前标签先自动保存，再从侧栏打开保留当前环境 Query', async () => {
     render(<App />);
     fireEvent.change(await screen.findByLabelText('参数值1'), { target: { value: '99' } });
     fireEvent.click(screen.getByRole('button', { name: '关闭标签 获取用户列表' }));
-    expect(screen.queryByLabelText('参数值1')).toBeNull();
+    await waitFor(() => expect(screen.queryByLabelText('参数值1')).toBeNull());
+    expect(api.save).toHaveBeenCalledTimes(1);
+    expect(vi.mocked(api.save).mock.calls[0][0].requests[0].environmentConfigs?.['demo-dev'].query[0].value).toBe('99');
     fireEvent.click(within(screen.getByRole('complementary')).getByRole('button', { name: /获取用户列表/ }));
-    fireEvent.click(await screen.findByRole('button', { name: '保留草稿并切换' }));
     expect((await screen.findByLabelText('参数值1') as HTMLInputElement).value).toBe('99');
   });
   it('服务公共 Header 和 API Key 引用进入保存快照，不改变请求继承', async () => {

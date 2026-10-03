@@ -43,6 +43,7 @@ fn context<'a>(
     workspace: &'a Workspace,
     input: &ExecuteInput,
 ) -> Result<(&'a Project, &'a Service, &'a Environment, &'a Binding), String> {
+    crate::store::validate_request_environment_configs(workspace, &input.request)?;
     let active = workspace
         .active_project_id
         .as_deref()

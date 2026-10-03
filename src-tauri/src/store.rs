@@ -11,6 +11,9 @@ use std::{
 
 const INITIAL_SCHEMA: &str = include_str!("../migrations/001_initial.sql");
 const V2_SCHEMA: &str = include_str!("../migrations/002_service_auth_form.sql");
+const V3_SCHEMA: &str = include_str!("../migrations/003_environment_configs.sql");
+
+mod responses;
 
 pub struct Store {
     connection: Mutex<Connection>,
@@ -52,14 +55,14 @@ impl Store {
                     |r| Ok((r.get(0)?, r.get(1)?)),
                 )
                 .map_err(db_error)?;
-            if count != 1 || !matches!(version, Some(1 | 2)) {
+            if count != 1 || !matches!(version, Some(1..=3)) {
                 return Err(
                     "不支持此数据库 schema 版本，已停止打开；请使用匹配版本程序或一致性备份恢复"
                         .to_string(),
                 );
             }
             validate_integrity(&tx)?;
-            if version == Some(1) {
+            if matches!(version, Some(1 | 2)) {
                 // Never back up the writing connection: SQLite returns LOCKED.
                 // IMMEDIATE excludes other writers until backup + migration
                 // commit, so this reader sees precisely the pre-upgrade state,
@@ -67,7 +70,10 @@ impl Store {
                 let source = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY)
                     .map_err(db_error)?;
                 backup_connection(&source, &path)?;
-                tx.execute_batch(V2_SCHEMA).map_err(db_error)?;
+                if version == Some(1) {
+                    tx.execute_batch(V2_SCHEMA).map_err(db_error)?;
+                }
+                tx.execute_batch(V3_SCHEMA).map_err(db_error)?;
             }
         } else {
             let count: i64 = tx
@@ -82,6 +88,7 @@ impl Store {
             }
             tx.execute_batch(INITIAL_SCHEMA).map_err(db_error)?;
             tx.execute_batch(V2_SCHEMA).map_err(db_error)?;
+            tx.execute_batch(V3_SCHEMA).map_err(db_error)?;
         }
         validate_integrity(&tx)?;
         read_workspace(&tx, false)?;
@@ -241,6 +248,7 @@ impl Store {
         )
         .map_err(db_error)?;
         write_workspace(&tx, &workspace, &ciphertexts)?;
+        responses::remove_orphans(&tx)?;
         tx.execute(
             "UPDATE workspace_state SET active_project_id=?1 WHERE singleton=1",
             [&workspace.active_project_id],
@@ -356,6 +364,20 @@ fn validate_auth(auth: Option<&AuthConfig>) -> Result<(), String> {
 }
 
 fn validate_v2_fields(workspace: &Workspace) -> Result<(), String> {
+    for color in workspace
+        .projects
+        .iter()
+        .map(|p| &p.color)
+        .chain(workspace.environments.iter().map(|e| &e.color))
+        .flatten()
+    {
+        if color.len() != 7
+            || !color.starts_with('#')
+            || !color.as_bytes()[1..].iter().all(u8::is_ascii_hexdigit)
+        {
+            return Err("颜色必须为 #RRGGBB 格式".into());
+        }
+    }
     for service in &workspace.services {
         validate_auth(service.auth.as_ref())?;
         let mut ids = HashSet::new();
@@ -368,6 +390,7 @@ fn validate_v2_fields(workspace: &Workspace) -> Result<(), String> {
         }
     }
     for request in &workspace.requests {
+        validate_request_environment_configs(workspace, request)?;
         validate_auth(request.auth.as_ref())?;
         let mut ids = HashSet::new();
         if request.form.iter().any(|f| {
@@ -381,6 +404,58 @@ fn validate_v2_fields(workspace: &Workspace) -> Result<(), String> {
     Ok(())
 }
 
+/// Validate even inactive overrides, so a foreign key cannot hide until an
+/// environment switch. The resolved IPC top-level draft remains authoritative.
+pub(crate) fn validate_request_environment_configs(
+    workspace: &Workspace,
+    request: &RequestDefinition,
+) -> Result<(), String> {
+    let Some(configs) = &request.environment_configs else {
+        return Ok(());
+    };
+    let service = workspace
+        .services
+        .iter()
+        .find(|s| s.id == request.service_id)
+        .ok_or("接口引用的服务不存在")?;
+    for (environment_id, config) in configs {
+        if !workspace
+            .environments
+            .iter()
+            .any(|e| e.id == *environment_id && e.project_id == service.project_id)
+        {
+            return Err("环境配置必须引用接口所属项目的有效环境".into());
+        }
+        if !(1..=300_000).contains(&config.timeout_ms)
+            || !matches!(
+                config.body_type.as_str(),
+                "none" | "json" | "text" | "form" | "multipart"
+            )
+        {
+            return Err("环境配置正文类型或超时无效（1～300000 毫秒）".into());
+        }
+        validate_auth(config.auth.as_ref())?;
+        for pairs in [&config.query, &config.headers] {
+            let mut ids = HashSet::new();
+            if pairs
+                .iter()
+                .any(|p| p.id.trim().is_empty() || !ids.insert(&p.id))
+            {
+                return Err("环境配置参数存在空 ID 或重复 ID".into());
+            }
+        }
+        let mut ids = HashSet::new();
+        if config.form.iter().any(|f| {
+            f.id.trim().is_empty()
+                || !ids.insert(&f.id)
+                || !matches!(f.kind.as_str(), "text" | "file")
+        }) {
+            return Err("环境配置表单存在空 ID、重复 ID 或无效类型".into());
+        }
+    }
+    Ok(())
+}
+
 /// Keep this small native selector independent of engine. Scope priority and
 /// template rules intentionally mirror its contract (not rendered output).
 fn request_secret_indices(
@@ -388,6 +463,7 @@ fn request_secret_indices(
     input: &ExecuteInput,
     mut secret_value: impl FnMut(usize) -> Result<String, String>,
 ) -> Result<Vec<usize>, String> {
+    validate_request_environment_configs(workspace, &input.request)?;
     let project = workspace
         .active_project_id
         .as_deref()
@@ -668,7 +744,7 @@ fn validate_integrity(connection: &Connection) -> Result<(), String> {
         .query_row(
             "SELECT (SELECT count(*) FROM workspace_state WHERE singleton=1) <> 1
              OR (SELECT count(*) FROM schema_migration) <> 1
-             OR NOT EXISTS(SELECT 1 FROM schema_migration WHERE version IN (1,2))
+             OR NOT EXISTS(SELECT 1 FROM schema_migration WHERE version IN (1,2,3))
              OR EXISTS(SELECT 1 FROM project p
                        LEFT JOIN project_state s ON s.project_id=p.id
                        WHERE s.project_id IS NULL)",
@@ -763,17 +839,18 @@ fn read_workspace(connection: &Connection, decrypt: bool) -> Result<Workspace, S
         )
         .map_err(db_error)?;
     let projects = read_rows(connection,
-        "SELECT p.id,p.name,s.environment_id FROM project p LEFT JOIN project_state s ON s.project_id=p.id ORDER BY p.position",
-        |r| Ok(Project { id:r.get(0)?, name:r.get(1)?, active_environment_id:r.get(2)? }))?;
+        "SELECT p.id,p.name,s.environment_id,p.color FROM project p LEFT JOIN project_state s ON s.project_id=p.id ORDER BY p.position",
+        |r| Ok(Project { id:r.get(0)?, name:r.get(1)?, active_environment_id:r.get(2)?, color:r.get(3)? }))?;
     let environments = read_rows(
         connection,
-        "SELECT id,project_id,name,is_production FROM environment ORDER BY position",
+        "SELECT id,project_id,name,is_production,color FROM environment ORDER BY position",
         |r| {
             Ok(Environment {
                 id: r.get(0)?,
                 project_id: r.get(1)?,
                 name: r.get(2)?,
                 is_production: r.get(3)?,
+                color: r.get(4)?,
             })
         },
     )?;
@@ -806,12 +883,13 @@ fn read_workspace(connection: &Connection, decrypt: bool) -> Result<Workspace, S
         },
     )?;
     let mut requests = read_rows(connection,
-        "SELECT id,service_id,folder_id,name,method,path,body_type,body,timeout_ms,auth,form FROM request ORDER BY position",
+        "SELECT id,service_id,folder_id,name,method,path,body_type,body,timeout_ms,auth,form,environment_configs FROM request ORDER BY position",
         |r| Ok(RequestDefinition {
             id:r.get(0)?, service_id:r.get(1)?, folder_id:r.get(2)?, name:r.get(3)?,
             method:r.get(4)?, path:r.get(5)?, body_type:r.get(6)?, body:r.get(7)?,
             timeout_ms:r.get(8)?, query:Vec::new(), headers:Vec::new(),
             auth:json_column(r, 9)?, form:json_column(r, 10)?,
+            environment_configs:json_column(r, 11)?,
         }))?;
     for request in &mut requests {
         request.query = read_pairs(connection, &request.id, "query")?;
@@ -868,15 +946,15 @@ fn write_workspace(
     for (index, project) in workspace.projects.iter().enumerate() {
         connection
             .execute(
-                "INSERT INTO project(id,name,position) VALUES (?1,?2,?3)",
-                params![project.id, project.name, position(index)?],
+                "INSERT INTO project(id,name,position,color) VALUES (?1,?2,?3,?4)",
+                params![project.id, project.name, position(index)?, project.color],
             )
             .map_err(db_error)?;
     }
     for (index, environment) in workspace.environments.iter().enumerate() {
         connection.execute(
-            "INSERT INTO environment(id,project_id,name,is_production,position) VALUES (?1,?2,?3,?4,?5)",
-            params![environment.id, environment.project_id, environment.name, environment.is_production, position(index)?],
+            "INSERT INTO environment(id,project_id,name,is_production,position,color) VALUES (?1,?2,?3,?4,?5,?6)",
+            params![environment.id, environment.project_id, environment.name, environment.is_production, position(index)?, environment.color],
         ).map_err(db_error)?;
     }
     for project in &workspace.projects {
@@ -935,11 +1013,11 @@ fn write_workspace(
         let timeout = i64::try_from(request.timeout_ms)
             .map_err(|_| "接口超时超出 SQLite 支持范围".to_string())?;
         connection.execute(
-            "INSERT INTO request(id,project_id,service_id,folder_id,name,method,path,body_type,body,timeout_ms,position,auth,form)
-             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13)",
+            "INSERT INTO request(id,project_id,service_id,folder_id,name,method,path,body_type,body,timeout_ms,position,auth,form,environment_configs)
+             VALUES (?1,?2,?3,?4,?5,?6,?7,?8,?9,?10,?11,?12,?13,?14)",
             params![request.id, project_id, request.service_id, request.folder_id, request.name,
                 request.method, request.path, request.body_type, request.body, timeout, position(index)?,
-                json_value(&request.auth)?, json_value(&request.form)?],
+                json_value(&request.auth)?, json_value(&request.form)?, json_value(&request.environment_configs)?],
         ).map_err(db_error)?;
         for (kind, pairs) in [("query", &request.query), ("header", &request.headers)] {
             for (pair_index, pair) in pairs.iter().enumerate() {
@@ -997,6 +1075,10 @@ fn write_workspace(
 #[cfg(test)]
 #[path = "store/v2_tests.rs"]
 mod v2_tests;
+
+#[cfg(test)]
+#[path = "store/v3_tests.rs"]
+mod v3_tests;
 
 #[cfg(test)]
 mod tests {

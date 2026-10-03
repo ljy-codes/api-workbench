@@ -28,6 +28,8 @@ pub struct Project {
     pub id: String,
     pub name: String,
     pub active_environment_id: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,6 +38,8 @@ pub struct Environment {
     pub project_id: String,
     pub name: String,
     pub is_production: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub color: Option<String>,
 }
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -95,6 +99,24 @@ pub struct RequestDefinition {
     pub name: String,
     pub method: String,
     pub path: String,
+    pub query: Vec<Pair>,
+    pub headers: Vec<Pair>,
+    pub body_type: String,
+    pub body: String,
+    pub timeout_ms: u64,
+    #[serde(default)]
+    pub auth: Option<AuthConfig>,
+    #[serde(default)]
+    pub form: Vec<FormField>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub environment_configs: Option<std::collections::BTreeMap<String, RequestConfig>>,
+}
+
+/// Complete environment execution configuration. Legacy request fields remain
+/// defaults; execution IPC supplies resolved top-level fields, including drafts.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestConfig {
     pub query: Vec<Pair>,
     pub headers: Vec<Pair>,
     pub body_type: String,

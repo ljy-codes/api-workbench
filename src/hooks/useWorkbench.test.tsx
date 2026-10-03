@@ -5,12 +5,14 @@ import { demoWorkspace } from '../lib/workspace';
 import { useWorkbench } from './useWorkbench';
 import { api } from '../lib/ipc';
 
-vi.mock('../lib/ipc', () => ({ desktop: true, api: { load: vi.fn(), save: vi.fn(), preview: vi.fn(), send: vi.fn(), cancel: vi.fn(), exportCurl: vi.fn(), pickFile: vi.fn(), readProjectFile: vi.fn(), writeProjectFile: vi.fn(), backup: vi.fn() } }));
+vi.mock('../lib/ipc', () => ({ desktop: true, api: { loadResponse: vi.fn(), saveResponse: vi.fn(), load: vi.fn(), save: vi.fn(), preview: vi.fn(), send: vi.fn(), cancel: vi.fn(), exportCurl: vi.fn(), pickFile: vi.fn(), readProjectFile: vi.fn(), writeProjectFile: vi.fn(), backup: vi.fn() } }));
 function deferred<T>() { let resolve!: (value: T) => void; let reject!: (reason: unknown) => void; const promise = new Promise<T>((a, b) => { resolve = a; reject = b; }); return { promise, resolve, reject }; }
 const preview: Preview = { url: 'https://api.example.com/users', environmentName: '开发环境', serviceName: '用户服务', isProduction: false, resolvedVariables: [] };
 const response = (executionId: string): ResponseData => ({ executionId, status: 200, statusText: 'OK', body: '{}', headers: [], sizeBytes: 2, durationMs: 10, truncated: false, environmentName: '开发环境', url: preview.url });
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(api.loadResponse).mockResolvedValue(null);
+  vi.mocked(api.saveResponse).mockResolvedValue(undefined);
   vi.mocked(api.load).mockResolvedValue(demoWorkspace());
   vi.mocked(api.preview).mockResolvedValue(preview);
   vi.mocked(api.cancel).mockResolvedValue(undefined);
@@ -27,12 +29,12 @@ describe('IPC、快照与并发', () => {
     act(() => { sending = result.current.execute(); });
     await waitFor(() => expect(api.send).toHaveBeenCalledTimes(1));
     const executionId = vi.mocked(api.send).mock.calls[0][0].executionId;
-    act(() => result.current.closeTab('demo-list'));
+    await act(async () => result.current.closeTab('demo-list'));
     expect(result.current.hasRunning).toBe(true);
     expect(result.current.request).toBeUndefined();
     expect(api.cancel).not.toHaveBeenCalled();
     await act(async () => { pending.resolve(response(executionId)); await sending; });
-    act(() => result.current.selectRequest('demo-list'));
+    await act(async () => result.current.selectRequest('demo-list'));
     expect(result.current.execution?.response?.executionId).toBe(executionId);
   });
   it('删除接口后清理失效标签，不保留另一接口的执行面板', async () => {
@@ -43,14 +45,15 @@ describe('IPC、快照与并发', () => {
     expect(result.current.request).toBeUndefined();
     expect(result.current.selectedId).toBeNull();
   });
-  it.each(['取消', '保存失败'])('cURL 导出%s时不触发导出或复制', async outcome => {
+  it('cURL 自动保存失败时不触发导出或复制', async () => {
     vi.mocked(api.save).mockRejectedValueOnce(new Error('save failed'));
     const { result } = renderHook(useWorkbench);
     await waitFor(() => expect(result.current.request).toBeTruthy());
     act(() => result.current.mutate(w => ({ ...w })));
     let copying!: Promise<void>;
     act(() => { copying = result.current.copyCurl(); });
-    await act(async () => { result.current.confirmation!.resolve(outcome !== '取消'); result.current.setConfirmation(null); await copying; });
+    await act(async () => { await copying; });
+    expect(result.current.confirmation).toBeNull();
     expect(api.exportCurl).not.toHaveBeenCalled();
     expect(result.current.dirty).toBe(true);
     expect(result.current.busy).toBe(false);
@@ -76,17 +79,17 @@ describe('IPC、快照与并发', () => {
     await act(() => result.current.execute());
     act(() => result.current.setTemporary([{ id: 't', key: 'page', value: '2', enabled: true }]));
     act(() => result.current.mutate(w => ({ ...w, requests: w.requests.map(r => r.id === 'demo-list' ? { ...r, path: '/draft' } : r) })));
-    act(() => result.current.closeTab('demo-list'));
+    await act(async () => result.current.closeTab('demo-list'));
     expect(result.current.selectedId).toBeNull();
     expect(result.current.workspace.requests.find(r => r.id === 'demo-list')?.path).toBe('/draft');
-    act(() => result.current.selectRequest('demo-list'));
+    await act(async () => result.current.selectRequest('demo-list'));
     await act(async () => { result.current.confirmation?.resolve(true); result.current.setConfirmation(null); });
     expect(result.current.openTabs).toEqual(['demo-list']);
     expect(result.current.request?.path).toBe('/draft');
     expect(result.current.execution?.response?.status).toBe(200);
     expect(result.current.temporary[0].value).toBe('2');
   });
-  it('复制 cURL 保存确认前不导出，确认后仅复制原生脱敏结果且不发送', async () => {
+  it('复制 cURL 自动保存后仅复制原生脱敏结果且不发送', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });
     vi.mocked(api.exportCurl).mockResolvedValue("curl 'https://example.com' -H 'Authorization: [REDACTED]'");
@@ -97,7 +100,8 @@ describe('IPC、快照与并发', () => {
     act(() => { copying = result.current.copyCurl(); });
     expect(result.current.busy).toBe(true);
     expect(api.exportCurl).not.toHaveBeenCalled();
-    await act(async () => { result.current.confirmation!.resolve(true); result.current.setConfirmation(null); await copying; });
+    await act(async () => { await copying; });
+    expect(result.current.confirmation).toBeNull();
     expect(api.save).toHaveBeenCalledTimes(1);
     expect(api.exportCurl).toHaveBeenCalledWith(expect.objectContaining({ request: expect.objectContaining({ path: '/draft' }), productionConfirmed: false }));
     expect(writeText).toHaveBeenCalledWith("curl 'https://example.com' -H 'Authorization: [REDACTED]'");
@@ -110,6 +114,7 @@ describe('IPC、快照与并发', () => {
     await act(() => result.current.save());
     expect(api.save).toHaveBeenCalledWith(expect.objectContaining({ revision: 0, bindings: expect.any(Array), requests: expect.any(Array), variables: expect.any(Array) }));
     expect(result.current.workspace.revision).toBe(1);
+    act(() => result.current.mutate(w => ({ ...w })));
     await act(() => result.current.save());
     expect(vi.mocked(api.save).mock.calls[1][0].revision).toBe(1);
     expect(result.current.workspace.revision).toBe(2);
@@ -125,11 +130,11 @@ describe('IPC、快照与并发', () => {
     const id = vi.mocked(api.send).mock.calls[0][0].executionId;
     await act(() => result.current.cancel());
     expect(api.cancel).toHaveBeenCalledWith(id);
-    act(() => result.current.selectRequest('demo-create'));
+    await act(async () => result.current.selectRequest('demo-create'));
     expect(result.current.execution).toBeUndefined();
     await act(async () => { pending.resolve(response(id)); await sending; });
     expect(result.current.execution).toBeUndefined();
-    act(() => result.current.selectRequest('demo-list'));
+    await act(async () => result.current.selectRequest('demo-list'));
     expect(result.current.execution?.response?.executionId).toBe(id);
   });
   it('同一接口准备中及发送中不能重复发送', async () => {
@@ -165,7 +170,7 @@ describe('IPC、快照与并发', () => {
     let sending!: Promise<void>;
     act(() => { sending = result.current.execute(); });
     await waitFor(() => expect(api.send).toHaveBeenCalledTimes(1));
-    act(() => result.current.selectRequest('demo-create'));
+    await act(async () => result.current.selectRequest('demo-create'));
     vi.mocked(api.preview).mockReturnValueOnce(secondPreview.promise);
     let preparing!: Promise<void>;
     act(() => { preparing = result.current.execute(true); });

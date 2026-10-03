@@ -1,4 +1,4 @@
-import type { FormField, Pair, Variable, Workspace } from '../types';
+import type { FormField, Pair, RequestConfig, Variable, Workspace } from '../types';
 import { newRequest, uid } from './workspace';
 
 const MAX_BYTES = 1024 * 1024;
@@ -78,7 +78,8 @@ function allocateIds(workspace: Workspace) {
     ...workspace.projects, ...workspace.environments, ...workspace.services, ...workspace.bindings,
     ...workspace.folders, ...workspace.requests, ...workspace.variables,
     ...workspace.services.flatMap(s => s.headers ?? []),
-    ...workspace.requests.flatMap(r => [...r.headers, ...r.query, ...(r.form ?? [])]),
+    ...workspace.requests.flatMap(r => [r, ...Object.values(r.environmentConfigs ?? {})]
+      .flatMap(c => [...c.headers, ...c.query, ...(c.form ?? [])])),
   ].map(e => e.id));
   return () => {
     for (let attempt = 0; attempt < 100; attempt++) {
@@ -137,6 +138,7 @@ function timeoutMs(value: string) {
 
 /**
  * 导入为当前活动项目/环境下的全新服务、绑定和接口草稿，不保存、不联网、不执行命令。
+ * 仅 name/method/path 共享；执行配置只写入当前环境，基础字段保持 newRequest 缺省值。
  * 支持 POSIX 单/双引号、转义/续行、单 URL、-X/--request、-H/--header、
  * -d/--data/--data-raw、--json、--url、-u/--user、基础 -F/--form/--form-string。
  * --head/-I 导入为无正文 HEAD；与任何非 HEAD 显式方法或正文选项组合均拒绝，
@@ -162,6 +164,10 @@ export function importCurl(workspace: Workspace, text: string, serviceName?: str
   const serviceId = allocate();
   const request = newRequest(serviceId, null, allocate());
   request.name = 'cURL 导入';
+  // Separate arrays prevent parsed headers/query from mutating the legacy defaults.
+  const config: RequestConfig = {
+    query: [], headers: [], bodyType: request.bodyType, body: request.body, timeoutMs: request.timeoutMs,
+  };
   const variables: Variable[] = [];
   const names = new Set(workspace.variables.map(v => v.name));
   let secretSequence = 0;
@@ -219,7 +225,7 @@ export function importCurl(workspace: Workspace, text: string, serviceName?: str
         method = value;
         break;
       case 'timeout':
-        request.timeoutMs = timeoutMs(value);
+        config.timeoutMs = timeoutMs(value);
         break;
       case 'header': {
         check(!value.startsWith('@'), 'cURL 不支持从文件读取 Header');
@@ -234,7 +240,7 @@ export function importCurl(workspace: Workspace, text: string, serviceName?: str
           suppressContentType = true;
           break;
         }
-        request.headers.push(pair(key, headerValue));
+        config.headers.push(pair(key, headerValue));
         break;
       }
       case 'user':
@@ -272,26 +278,27 @@ export function importCurl(workspace: Workspace, text: string, serviceName?: str
   check(!head || (!hasNonHeadMethod && mode === undefined), 'cURL HEAD 与其他请求方法或正文参数冲突，无法安全导入');
   const parsed = parseUrl(url);
   request.path = parsed.path;
-  request.query = parsed.query.map(([key, value]) => pair(key, value));
+  config.query = parsed.query.map(([key, value]) => pair(key, value));
   request.method = head ? 'HEAD' : method ?? (mode === undefined ? 'GET' : 'POST');
   if (user !== undefined) {
-    check(!request.headers.some(p => p.key.toLowerCase() === 'authorization'), 'cURL 用户鉴权与 Authorization Header 冲突');
+    check(!config.headers.some(p => p.key.toLowerCase() === 'authorization'), 'cURL 用户鉴权与 Authorization Header 冲突');
     const separator = user.indexOf(':');
-    request.auth = { kind: 'basic', username: secret(user.slice(0, separator)), password: secret(user.slice(separator + 1)) };
+    config.auth = { kind: 'basic', username: secret(user.slice(0, separator)), password: secret(user.slice(separator + 1)) };
   }
   const defaultHeader = (key: string, value: string) => {
-    if (!request.headers.some(p => p.key.toLowerCase() === key.toLowerCase())) request.headers.push(pair(key, value));
+    if (!config.headers.some(p => p.key.toLowerCase() === key.toLowerCase())) config.headers.push(pair(key, value));
   };
   if (mode === 'data' || mode === 'json') {
-    request.body = body.join(mode === 'data' ? '&' : '');
-    request.bodyType = mode === 'json' && !suppressContentType ? 'json' : 'text';
+    config.body = body.join(mode === 'data' ? '&' : '');
+    config.bodyType = mode === 'json' && !suppressContentType ? 'json' : 'text';
     if (!suppressContentType) defaultHeader('Content-Type', mode === 'json' ? 'application/json' : 'application/x-www-form-urlencoded');
     if (mode === 'json') defaultHeader('Accept', 'application/json');
   } else if (mode === 'form') {
-    check(!suppressContentType && !request.headers.some(p => p.key.toLowerCase() === 'content-type'), 'cURL multipart 不支持手动 Content-Type，请由引擎生成 boundary');
-    request.bodyType = 'multipart';
-    request.form = form;
+    check(!suppressContentType && !config.headers.some(p => p.key.toLowerCase() === 'content-type'), 'cURL multipart 不支持手动 Content-Type，请由引擎生成 boundary');
+    config.bodyType = 'multipart';
+    config.form = form;
   }
+  request.environmentConfigs = { [environment.id]: config };
   return {
     ...workspace,
     services: [...workspace.services, { id: serviceId, projectId: project.id, name: serviceName?.trim() ?? 'cURL 导入服务' }],

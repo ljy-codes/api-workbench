@@ -9,6 +9,7 @@ fn workspace(base: &str) -> Workspace {
             id: "p".into(),
             name: "本地集成".into(),
             active_environment_id: Some("dev".into()),
+            color: None,
         }],
         environments: vec![
             Environment {
@@ -16,12 +17,14 @@ fn workspace(base: &str) -> Workspace {
                 project_id: "p".into(),
                 name: "开发".into(),
                 is_production: false,
+                color: None,
             },
             Environment {
                 id: "prod".into(),
                 project_id: "p".into(),
                 name: "生产".into(),
                 is_production: true,
+                color: None,
             },
         ],
         services: vec![Service {
@@ -63,6 +66,7 @@ fn workspace(base: &str) -> Workspace {
             timeout_ms: 3000,
             auth: None,
             form: vec![],
+            environment_configs: None,
         }],
         variables: vec![Variable {
             id: "v".into(),

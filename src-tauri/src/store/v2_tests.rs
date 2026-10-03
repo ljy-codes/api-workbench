@@ -71,7 +71,7 @@ fn migrates_real_v1_wal_and_backs_up_before_mutation() {
     let path = dir.path().join("旧库.sqlite");
     let old = legacy(&path); // Keep WAL live: copying only the main file loses rows.
     let store = Store::open(&path).unwrap();
-    assert_eq!(version(&old), 2);
+    assert_eq!(version(&old), 3);
     let workspace = store.load().unwrap();
     assert_eq!(workspace.revision, 42);
     assert_eq!(workspace.requests[0].headers[0].value, "old");
@@ -113,7 +113,7 @@ fn migrates_real_v1_wal_and_backs_up_before_mutation() {
     assert_eq!(
         backups(&path).len(),
         1,
-        "reopening v2 must not migrate again"
+        "reopening current schema must not migrate again"
     );
 }
 
@@ -183,7 +183,7 @@ fn fresh_database_has_v2_and_unknown_single_version_is_rejected() {
     let path = dir.path().join("fresh.sqlite");
     Store::open(&path).unwrap();
     let db = Connection::open(&path).unwrap();
-    assert_eq!(version(&db), 2);
+    assert_eq!(version(&db), 3);
     assert!(!dir.path().join("backups").exists());
     db.execute("UPDATE schema_migration SET version=999", [])
         .unwrap();

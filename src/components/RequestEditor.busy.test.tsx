@@ -10,7 +10,7 @@ import { RequestEditor } from './RequestEditor';
 // Only IPC is mocked: exercise the actual CodeMirror DOM, commands and React wrapper.
 vi.mock('../lib/ipc', () => ({
   desktop: true,
-  api: { load: vi.fn(), save: vi.fn(), preview: vi.fn(), send: vi.fn(), cancel: vi.fn() },
+  api: { loadResponse: vi.fn(), saveResponse: vi.fn(), load: vi.fn(), save: vi.fn(), preview: vi.fn(), send: vi.fn(), cancel: vi.fn() },
 }));
 
 function deferred<T>() {
@@ -51,6 +51,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   const workspace = demoWorkspace();
   workspace.requests[0] = { ...workspace.requests[0], bodyType: 'text', body: 'saved body' };
+  vi.mocked(api.loadResponse).mockResolvedValue(null);
+  vi.mocked(api.saveResponse).mockResolvedValue(undefined);
   vi.mocked(api.load).mockResolvedValue(workspace);
 });
 afterEach(cleanup);
@@ -77,6 +79,18 @@ function pressEnter(view: EditorView) {
 }
 
 describe('真实正文编辑器的异步锁定', () => {
+  it('未选择环境时正文与超时只读，防止误改共享模板', async () => {
+    const workspace = demoWorkspace();
+    workspace.projects[0].activeEnvironmentId = null;
+    workspace.requests[0].bodyType = 'text';
+    workspace.requests[0].body = 'template';
+    vi.mocked(api.load).mockResolvedValue(workspace);
+    const { view, content } = await openBody();
+    expect(content.getAttribute('contenteditable')).toBe('false');
+    expect((screen.getByLabelText('超时时间（毫秒）') as HTMLInputElement).disabled).toBe(true);
+    pressEnter(view);
+    expect(view.state.doc.toString()).toBe('template');
+  });
   it.each(['成功', '失败'] as const)('延迟保存%s：等待期间禁止正文编辑，结束后恢复编辑能力', async outcome => {
     const pending = deferred<Workspace>();
     vi.mocked(api.save).mockReturnValueOnce(pending.promise);
@@ -91,7 +105,7 @@ describe('真实正文编辑器的异步锁定', () => {
     fireEvent.click(screen.getByRole('button', { name: '保存工作区' }));
     expect(api.save).toHaveBeenCalledTimes(1);
     const snapshot = structuredClone(vi.mocked(api.save).mock.calls[0][0]);
-    expect(snapshot.requests[0].body).toBe(draft);
+    expect(snapshot.requests[0].environmentConfigs?.['demo-dev'].body).toBe(draft);
 
     // fieldset disabled alone does not stop CodeMirror's actual editing command.
     pressEnter(view);

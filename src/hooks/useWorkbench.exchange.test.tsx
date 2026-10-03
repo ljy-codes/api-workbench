@@ -7,13 +7,15 @@ import { demoWorkspace } from '../lib/workspace';
 import { useWorkbench } from './useWorkbench';
 
 vi.mock('../lib/ipc', () => ({ desktop: true, api: {
-  load: vi.fn(), save: vi.fn(), readProjectFile: vi.fn(), writeProjectFile: vi.fn(), backup: vi.fn(),
+  loadResponse: vi.fn(), saveResponse: vi.fn(), load: vi.fn(), save: vi.fn(), readProjectFile: vi.fn(), writeProjectFile: vi.fn(), backup: vi.fn(),
 } }));
 // These tests exercise the frontend transaction boundary; parser tests belong to the exchange worker.
 vi.mock('../lib/exchange', () => ({ exportProject: vi.fn(), importProject: vi.fn() }));
 vi.mock('../lib/curl', () => ({ importCurl: vi.fn() }));
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.mocked(api.loadResponse).mockResolvedValue(null);
+  vi.mocked(api.saveResponse).mockResolvedValue(undefined);
   vi.mocked(api.load).mockResolvedValue(demoWorkspace());
   vi.mocked(importProject).mockImplementation(w => ({ ...w, projects: [...w.projects, { id: 'imported', name: '导入项目', activeEnvironmentId: null }], activeProjectId: 'imported' }));
   vi.mocked(importCurl).mockImplementation(w => ({ ...w, requests: [...w.requests, { ...w.requests[0], id: 'imported-request', name: '导入接口' }] }));

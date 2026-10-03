@@ -17,4 +17,9 @@ export const api = {
   writeProjectFile: (content: string) => call<string | null>('write_project_file', { content }),
   exportCurl: (input: ExecuteInput) => call<string>('export_curl', { input }),
   backup: () => call<string>('backup_workspace'),
+  loadResponse: (requestId: string, environmentId: string) => call<ResponseData | null>('load_response', { requestId, environmentId }),
+  saveResponse: (requestId: string, environmentId: string, response: ResponseData) => call<void>('save_response', { requestId, environmentId, response }),
+  clearResponse: (requestId: string, environmentId: string) => call<void>('clear_response', { requestId, environmentId }),
+  clearResponses: () => call<void>('clear_responses'),
+  compactStorage: () => call<void>('compact_storage'),
 };

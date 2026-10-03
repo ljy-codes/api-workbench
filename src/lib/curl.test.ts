@@ -1,15 +1,106 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import type { RequestConfig, Workspace } from '../types';
 import { importCurl } from './curl';
-import { demoWorkspace, emptyWorkspace } from './workspace';
+import { resolveRequest } from './environment';
+import { demoWorkspace, emptyWorkspace, newRequest } from './workspace';
+
+const effectiveImportedRequest = (w: Workspace) => resolveRequest(
+  w.requests.at(-1)!, w.projects.find(p => p.id === w.activeProjectId)!.activeEnvironmentId,
+);
+const executionConfig = (r: RequestConfig): RequestConfig => ({
+  query: r.query, headers: r.headers, auth: r.auth,
+  bodyType: r.bodyType, body: r.body, form: r.form, timeoutMs: r.timeoutMs,
+});
+const allIds = (w: Workspace) => [
+  ...w.projects, ...w.environments, ...w.services, ...w.bindings, ...w.folders, ...w.requests, ...w.variables,
+  ...w.services.flatMap(s => s.headers ?? []),
+  ...w.requests.flatMap(r => [r, ...Object.values(r.environmentConfigs ?? {})]
+    .flatMap(c => [...c.query, ...c.headers, ...(c.form ?? [])])),
+].map(e => e.id);
 
 describe('安全的 POSIX cURL 纯解析', () => {
+  it.each(['demo-dev', 'demo-prod'])('在 %s 导入的正文/Query/Header/鉴权/超时不进入共享缺省或其他环境，绑定保持隔离', environmentId => {
+    const w = demoWorkspace();
+    w.projects[0].activeEnvironmentId = environmentId;
+    const otherEnvironmentId = w.environments.find(e => e.id !== environmentId)!.id;
+    const before = structuredClone(w);
+    const next = importCurl(w, `curl 'https://import.example.com:8443/a?x=1&token=query-secret' --json '{"only":"A"}' -H 'X-Env: A' -H 'Cookie: cookie-secret' -u user:pass --max-time 1.234`);
+    const stored = next.requests.at(-1)!;
+    const effective = resolveRequest(stored, environmentId);
+    const defaults = executionConfig(newRequest(stored.serviceId, null, stored.id));
+    expect(executionConfig(resolveRequest(stored, otherEnvironmentId))).toEqual(defaults);
+    expect(executionConfig(stored)).toEqual(defaults);
+    expect(Object.keys(stored.environmentConfigs!)).toEqual([environmentId]);
+    expect(effective).toMatchObject({ name: 'cURL 导入', method: 'POST', path: '/a', body: '{"only":"A"}', bodyType: 'json', timeoutMs: 1234 });
+    expect(effective.query.map(p => p.key)).toEqual(['x', 'token']);
+    expect(effective.headers).toEqual(expect.arrayContaining([
+      expect.objectContaining({ key: 'X-Env', value: 'A' }),
+      expect.objectContaining({ key: 'Cookie', value: expect.stringMatching(/^\{\{curl_secret_\d+\}\}$/) }),
+    ]));
+    expect(effective.auth).toMatchObject({ kind: 'basic', username: expect.stringMatching(/^\{\{/), password: expect.stringMatching(/^\{\{/) });
+    expect(JSON.stringify(stored)).not.toMatch(/query-secret|cookie-secret/);
+    expect(next.variables.every(v => v.scope === 'request' && v.ownerId === stored.id && v.isSecret)).toBe(true);
+    expect(next.bindings.slice(0, -1)).toEqual(before.bindings);
+    expect(next.bindings.filter(b => b.serviceId === stored.serviceId)).toEqual([
+      expect.objectContaining({ environmentId, baseUrl: 'https://import.example.com:8443', enabled: true }),
+    ]);
+    expect(resolveRequest(stored, otherEnvironmentId)).toMatchObject({ name: 'cURL 导入', method: 'POST', path: '/a' });
+    expect(next.requests.slice(0, -1)).toEqual(before.requests);
+    expect(w).toEqual(before);
+  });
+
+  it('multipart 文本/文件占位符仅存在当前环境，不成为其他环境的模板', () => {
+    const next = importCurl(demoWorkspace(), `curl https://example.com/upload -F 'tag=A' -F 'password=secret' -F 'file=@private.txt'`);
+    const stored = next.requests.at(-1)!;
+    expect(resolveRequest(stored, 'demo-prod').form).toBeUndefined();
+    expect(stored.form).toBeUndefined();
+    expect(stored.bodyType).toBe('none');
+    expect(resolveRequest(stored, 'demo-dev')).toMatchObject({
+      bodyType: 'multipart',
+      form: [
+        { key: 'tag', value: 'A', kind: 'text', enabled: true },
+        { key: 'password', value: expect.stringMatching(/^\{\{curl_secret_\d+\}\}$/), kind: 'text', enabled: true },
+        { key: 'file', value: '', kind: 'file', enabled: false },
+      ],
+    });
+    expect(next.bindings.at(-1)).toMatchObject({ environmentId: 'demo-dev', baseUrl: 'https://example.com' });
+  });
+
+  it('ID 分配覆盖所有环境的 Query/Header/Form，避免与非活动环境模板碰撞', () => {
+    const w = demoWorkspace();
+    const occupied = [
+      'occupied-query-0000-0000-000000000000',
+      'occupied-header-0000-0000-000000000000',
+      'occupied-form-0000-0000-000000000000',
+    ] as const;
+    w.requests[1].environmentConfigs = {
+      'demo-prod': {
+        query: [{ id: occupied[0], key: 'x', value: '1', enabled: true }],
+        headers: [{ id: occupied[1], key: 'X-Test', value: '1', enabled: true }],
+        form: [{ id: occupied[2], key: 'f', value: '1', enabled: true, kind: 'text' }],
+        body: '', bodyType: 'multipart', timeoutMs: 30000,
+      },
+    };
+    const before = structuredClone(w);
+    let sequence = 0;
+    const uuid = vi.spyOn(crypto, 'randomUUID')
+      .mockReturnValueOnce(occupied[0]).mockReturnValueOnce(occupied[1]).mockReturnValueOnce(occupied[2])
+      .mockImplementation(() => `fresh-0000-0000-0000-${++sequence}`);
+    try {
+      const next = importCurl(w, `curl 'https://example.com?x=1' -H 'X-Test: 1' -u user:pass -F text=value`);
+      expect(new Set(allIds(next)).size).toBe(allIds(next).length);
+      expect(next.services.at(-1)?.id).toMatch(/^fresh-/);
+      expect(w).toEqual(before);
+    } finally { uuid.mockRestore(); }
+  });
+
   it('在活动项目/环境创建新服务和 origin 绑定，保留路径、端口、重复 Query/Header', () => {
     const w = demoWorkspace();
     w.revision = 42;
     const before = structuredClone(w);
     const next = importCurl(w, `curl 'https://example.com:8443/v1/a%2Fb//c/?x=1&x=2&q=a%2Bb&q=a+b&empty=' -H 'X-Test: first' -H 'X-Test: second'`, '导入服务');
     const service = next.services.at(-1)!;
-    const request = next.requests.at(-1)!;
+    const request = effectiveImportedRequest(next);
     expect(service).toMatchObject({ name: '导入服务', projectId: w.activeProjectId });
     expect(next.bindings.at(-1)).toMatchObject({ serviceId: service.id, projectId: w.activeProjectId, environmentId: w.projects[0].activeEnvironmentId, baseUrl: 'https://example.com:8443', enabled: true });
     expect(request).toMatchObject({ serviceId: service.id, folderId: null, method: 'GET', path: '/v1/a%2Fb//c/' });
@@ -24,7 +115,7 @@ describe('安全的 POSIX cURL 纯解析', () => {
 
   it('正确处理 POSIX 拼接引号、双引号转义和 LF/CRLF 续行', () => {
     const next = importCurl(demoWorkspace(), "curl \\\r\n --url 'https://example.com:443/a' \\\n -XPOST -H 'X-Name: it'\\''s' --data-raw \"a=\\\"b\\\"&path=\\q\"");
-    const r = next.requests.at(-1)!;
+    const r = effectiveImportedRequest(next);
     expect(next.bindings.at(-1)?.baseUrl).toBe('https://example.com:443');
     expect(r.method).toBe('POST');
     expect(r.headers[0].value).toBe("it's");
@@ -33,14 +124,14 @@ describe('安全的 POSIX cURL 纯解析', () => {
 
   it('data 参数以 & 拼接，显式方法优先；raw @ 只是正文', () => {
     const next = importCurl(demoWorkspace(), `curl --request PATCH --data a=1 -d 'b=2' --data-raw '@not-a-file' https://example.com`);
-    const r = next.requests.at(-1)!;
+    const r = effectiveImportedRequest(next);
     expect(r).toMatchObject({ method: 'PATCH', body: 'a=1&b=2&@not-a-file', bodyType: 'text' });
     expect(r.headers).toEqual(expect.arrayContaining([expect.objectContaining({ key: 'Content-Type', value: 'application/x-www-form-urlencoded' })]));
   });
 
   it('json 拼接且增加默认 Content-Type/Accept，不覆盖手动头', () => {
     const next = importCurl(demoWorkspace(), `curl --json '{"a":' --json '1}' -H 'Accept: custom/type' https://example.com`);
-    const r = next.requests.at(-1)!;
+    const r = effectiveImportedRequest(next);
     expect(r).toMatchObject({ method: 'POST', bodyType: 'json', body: '{"a":1}' });
     expect(r.headers.filter(p => p.key.toLowerCase() === 'accept').map(p => p.value)).toEqual(['custom/type']);
     expect(r.headers.find(p => p.key === 'Content-Type')?.value).toBe('application/json');
@@ -50,7 +141,7 @@ describe('安全的 POSIX cURL 纯解析', () => {
     const w = demoWorkspace();
     w.variables.push({ id: 'v', projectId: w.projects[0].id, scope: 'project', ownerId: w.projects[0].id, name: 'curl_secret_1', value: 'old', isSecret: false });
     const next = importCurl(w, `curl -u 'alice:p:a:ss' -H 'X-API-Key: api-secret' -H 'Cookie: session=cookie-secret' 'https://example.com/a?access_token=query-secret'`);
-    const r = next.requests.at(-1)!;
+    const r = effectiveImportedRequest(next);
     expect(r.auth?.kind).toBe('basic');
     expect(r.auth?.username).toMatch(/^\{\{.+\}\}$/);
     expect(r.auth?.password).toMatch(/^\{\{.+\}\}$/);
@@ -63,14 +154,14 @@ describe('安全的 POSIX cURL 纯解析', () => {
 
   it('Authorization 字面量包括已有模板样式仍隔离为变量，不绑定到现有秘密', () => {
     const next = importCurl(demoWorkspace(), `curl -H 'Authorization: Bearer {{not_a_workspace_variable}}' https://example.com`);
-    const r = next.requests.at(-1)!;
+    const r = effectiveImportedRequest(next);
     expect(r.headers[0].value).toMatch(/^\{\{.+\}\}$/);
     expect(next.variables.at(-1)?.value).toBe('Bearer {{not_a_workspace_variable}}');
   });
 
   it('基础 multipart 保留重复文本项，清空并禁用文件项，不读取文件', () => {
     const next = importCurl(demoWorkspace(), `curl -F 'tag=one' -F 'tag=two' -F 'upload=@C:\\private\\secret.txt' -F 'part=<C:\\private\\body.txt' https://example.com/upload`);
-    const r = next.requests.at(-1)!;
+    const r = effectiveImportedRequest(next);
     expect(r).toMatchObject({ method: 'POST', bodyType: 'multipart', body: '' });
     expect(r.form?.map(f => [f.key, f.value, f.kind, f.enabled])).toEqual([
       ['tag', 'one', 'text', true], ['tag', 'two', 'text', true],
@@ -82,7 +173,7 @@ describe('安全的 POSIX cURL 纯解析', () => {
   it('支持 IPv6、长选项等号和短选项紧贴值，Query 值保留等号/百分号/中文', () => {
     const next = importCurl(demoWorkspace(), `curl --url='http://[::1]:8080/a%2fb/?q=a%3Db&percent=%252F&name=%E4%B8%AD%E6%96%87' -XPUT -H'X-A: v' --data-raw=''`);
     expect(next.bindings.at(-1)?.baseUrl).toBe('http://[::1]:8080');
-    const r = next.requests.at(-1)!;
+    const r = effectiveImportedRequest(next);
     expect(r.path).toBe('/a%2fb/');
     expect(r.query.map(p => p.value)).toEqual(['a=b', '%2F', '中文']);
     expect(r).toMatchObject({ method: 'PUT', body: '', bodyType: 'text' });
@@ -90,22 +181,19 @@ describe('安全的 POSIX cURL 纯解析', () => {
 
   it('单引号内普通 $ 和执行运算符只是正文，转义美元符号不作环境展开', () => {
     const next = importCurl(demoWorkspace(), `curl https://example.com --data-raw 'price=$5; literal | & > <' -H "X-Price: \\$5"`);
-    expect(next.requests.at(-1)?.body).toBe('price=$5; literal | & > <');
-    expect(next.requests.at(-1)?.headers[0].value).toBe('$5');
+    expect(effectiveImportedRequest(next).body).toBe('price=$5; literal | & > <');
+    expect(effectiveImportedRequest(next).headers[0].value).toBe('$5');
   });
 
   it('导入 ID 全局唯一，服务/环境/接口和全部 Pair/Form/变量不发生碰撞', () => {
     const next = importCurl(demoWorkspace(), `curl -u u:p -F a=x -F token=private https://example.com`);
-    const ids = [
-      ...next.projects, ...next.environments, ...next.services, ...next.bindings, ...next.folders,
-      ...next.requests, ...next.variables, ...next.requests.flatMap(r => [...r.query, ...r.headers, ...(r.form ?? [])]),
-    ].map(x => x.id);
+    const ids = allIds(next);
     expect(new Set(ids).size).toBe(ids.length);
   });
 
   it('重导入引擎输出：安全传输选项、毫秒超时和 Content-Type 默认值抑制', () => {
     const next = importCurl(demoWorkspace(), `curl --http1.1 --globoff --path-as-is --max-time '30.000' --request 'POST' --url 'https://example.com:443/v1/a%2Fb?q=one&q=two' --header 'Content-Type:' --header 'X-Empty;' --data-raw 'hello'`);
-    const r = next.requests.at(-1)!;
+    const r = effectiveImportedRequest(next);
     expect(r).toMatchObject({ method: 'POST', timeoutMs: 30000, bodyType: 'text', body: 'hello', path: '/v1/a%2Fb' });
     expect(r.headers.map(p => [p.key, p.value])).toEqual([['X-Empty', '']]);
     expect(r.query.map(p => p.value)).toEqual(['one', 'two']);
@@ -116,7 +204,7 @@ describe('安全的 POSIX cURL 纯解析', () => {
     const w = demoWorkspace();
     const before = structuredClone(w);
     const next = importCurl(w, `curl --http1.1 --globoff --path-as-is --max-time '1.001' --head --url 'https://example.com:443/v1/a%2Fb?q=one&q=two' --header 'X-Test: first' --header 'X-Test: second' --header 'X-Empty;'`);
-    const r = next.requests.at(-1)!;
+    const r = effectiveImportedRequest(next);
     expect(r).toMatchObject({ method: 'HEAD', bodyType: 'none', body: '', timeoutMs: 1001, path: '/v1/a%2Fb' });
     expect(r.form).toBeUndefined();
     expect(r.query.map(p => [p.key, p.value])).toEqual([['q', 'one'], ['q', 'two']]);
@@ -128,7 +216,7 @@ describe('安全的 POSIX cURL 纯解析', () => {
   });
 
   it.each(['--head', '-I', '-I --head', '--head -X HEAD', '--request HEAD -I', '-X HEAD'])('HEAD 无冲突写法：%s', flags => {
-    expect(importCurl(demoWorkspace(), `curl ${flags} https://example.com`).requests.at(-1))
+    expect(effectiveImportedRequest(importCurl(demoWorkspace(), `curl ${flags} https://example.com`)))
       .toMatchObject({ method: 'HEAD', bodyType: 'none', body: '' });
   });
 
@@ -149,7 +237,7 @@ describe('安全的 POSIX cURL 纯解析', () => {
 
   it('form-string 按字面值导入；原生 form 文件占位符清空禁用', () => {
     const next = importCurl(demoWorkspace(), `curl --http1.1 --globoff --path-as-is --max-time=0.001 --url https://example.com/upload --form-string 'field=@not-a-file;type=text/plain' --form-string 'field=<literal' --form-string 'quoted="keep"' --form 'upload=@<RESELECT_FILE>'`);
-    const r = next.requests.at(-1)!;
+    const r = effectiveImportedRequest(next);
     expect(r.timeoutMs).toBe(1);
     expect(r.form?.map(f => [f.key, f.value, f.kind, f.enabled])).toEqual([
       ['field', '@not-a-file;type=text/plain', 'text', true],
@@ -159,13 +247,13 @@ describe('安全的 POSIX cURL 纯解析', () => {
   });
 
   it.each([['.5', 500], ['300', 300000], ['1.234', 1234], ['0001.2300', 1230]])('转换 max-time %s 为 %s ms', (value, timeout) => {
-    expect(importCurl(demoWorkspace(), `curl --max-time ${value} https://example.com`).requests.at(-1)?.timeoutMs).toBe(timeout);
+    expect(effectiveImportedRequest(importCurl(demoWorkspace(), `curl --max-time ${value} https://example.com`)).timeoutMs).toBe(timeout);
   });
 
   it('显式空 Content-Type 使用分号保留，而冒号抑制 json 默认头', () => {
-    const explicit = importCurl(demoWorkspace(), "curl https://example.com -H 'Content-Type;' --data-raw hello").requests.at(-1)!;
+    const explicit = effectiveImportedRequest(importCurl(demoWorkspace(), "curl https://example.com -H 'Content-Type;' --data-raw hello"));
     expect(explicit.headers.map(p => [p.key, p.value])).toEqual([['Content-Type', '']]);
-    const suppressed = importCurl(demoWorkspace(), "curl https://example.com -H 'content-type:' --json '{}'").requests.at(-1)!;
+    const suppressed = effectiveImportedRequest(importCurl(demoWorkspace(), "curl https://example.com -H 'content-type:' --json '{}'"));
     // text avoids the native JSON engine reintroducing its own Content-Type.
     expect(suppressed.bodyType).toBe('text');
     expect(suppressed.headers.map(p => [p.key, p.value])).toEqual([['Accept', 'application/json']]);

@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 $localCargo = Join-Path $root '.tools\cargo'
 $localRustup = Join-Path $root '.tools\rustup'

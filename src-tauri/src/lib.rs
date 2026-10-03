@@ -49,6 +49,61 @@ async fn save_workspace(
 }
 
 #[tauri::command]
+async fn load_response(
+    state: State<'_, AppState>,
+    request_id: String,
+    environment_id: String,
+) -> Result<Option<ResponseData>, String> {
+    let store = state.store.clone();
+    tokio::task::spawn_blocking(move || store.load_response(&request_id, &environment_id))
+        .await
+        .map_err(|_| "读取响应缓存任务失败")?
+}
+
+#[tauri::command]
+async fn save_response(
+    state: State<'_, AppState>,
+    request_id: String,
+    environment_id: String,
+    response: ResponseData,
+) -> Result<(), String> {
+    let store = state.store.clone();
+    tokio::task::spawn_blocking(move || {
+        store.save_response(&request_id, &environment_id, &response)
+    })
+    .await
+    .map_err(|_| "保存响应缓存任务失败")?
+}
+
+#[tauri::command]
+async fn clear_response(
+    state: State<'_, AppState>,
+    request_id: String,
+    environment_id: String,
+) -> Result<(), String> {
+    let store = state.store.clone();
+    tokio::task::spawn_blocking(move || store.clear_response(&request_id, &environment_id))
+        .await
+        .map_err(|_| "清除响应缓存任务失败")?
+}
+
+#[tauri::command]
+async fn clear_responses(state: State<'_, AppState>) -> Result<(), String> {
+    let store = state.store.clone();
+    tokio::task::spawn_blocking(move || store.clear_responses())
+        .await
+        .map_err(|_| "清除全部响应缓存任务失败")?
+}
+
+#[tauri::command]
+async fn compact_storage(state: State<'_, AppState>) -> Result<(), String> {
+    let store = state.store.clone();
+    tokio::task::spawn_blocking(move || store.compact_storage())
+        .await
+        .map_err(|_| "回收本地存储空间任务失败")?
+}
+
+#[tauri::command]
 async fn preview_request(
     state: State<'_, AppState>,
     input: ExecuteInput,
@@ -213,6 +268,11 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             load_workspace,
             save_workspace,
+            load_response,
+            save_response,
+            clear_response,
+            clear_responses,
+            compact_storage,
             preview_request,
             send_request,
             cancel_request,
@@ -224,5 +284,5 @@ pub fn run() {
             backup_workspace
         ])
         .run(tauri::generate_context!())
-        .expect("接口工具启动失败：请检查数据目录权限与 WebView2 运行时");
+        .expect("EnvDock 启动失败：请检查数据目录权限与 WebView2 运行时");
 }

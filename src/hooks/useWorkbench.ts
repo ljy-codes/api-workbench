@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ExecuteInput, Pair, Preview, ResponseData, Workspace } from '../types';
+import type { ExecuteInput, Pair, Preview, RequestDefinition, ResponseData, Workspace } from '../types';
 import type { Confirmation } from '../components/Dialog';
 import { api, desktop } from '../lib/ipc';
 import { demoWorkspace, emptyWorkspace, errorMessage, responseForExecution, uid } from '../lib/workspace';
+import { cleanRequestBodies, executionKey, resolveRequest, updateEnvironmentRequest } from '../lib/environment';
 
 export type Execution = { id: string; requestId: string; environment: string; requestName: string; running: boolean; response?: ResponseData; error?: string; cancelRequested?: boolean };
 export function useWorkbench() {
@@ -10,6 +11,7 @@ export function useWorkbench() {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [openTabs, setOpenTabs] = useState<string[]>([]);
   const [loading, setLoading] = useState(desktop);
+  const [loadVersion, setLoadVersion] = useState(0);
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [notice, setNotice] = useState('');
@@ -20,17 +22,34 @@ export function useWorkbench() {
   const lock = useRef(false);
   const running = useRef(new Set<string>());
   const wsRef = useRef(workspace);
-  wsRef.current = workspace;
+  const dirtyRef = useRef(false);
+  const responseEpoch = useRef(0);
+  const executionRef = useRef(executions);
+  const putExecutions = (change: (value: Record<string, Execution>) => Record<string, Execution>) => {
+    executionRef.current = change(executionRef.current);
+    setExecutions(executionRef.current);
+  };
+  const acceptWorkspace = (w: Workspace, isDirty: boolean) => {
+    wsRef.current = w; dirtyRef.current = isDirty;
+    setWorkspace(w); setDirty(isDirty);
+  };
   const confirm = useCallback((options: Omit<Confirmation, 'resolve'>) => new Promise<boolean>(resolve => setConfirmation({ ...options, resolve })), []);
   const load = useCallback(async () => {
-    setLoading(true);
+    // Use refs: the initial effect starts with loading=true and load must stay stable.
+    if (lock.current) return;
+    if (running.current.size) { setNotice('仍有请求进行中，请完成或取消后再重新加载。'); return; }
+    if (dirtyRef.current) { setNotice('工作区有未保存修改，请先保存再重新加载；草稿已保留。'); return; }
+    lock.current = true; setBusy(true); setLoading(true);
     try {
       const w = await api.load();
       const first = w.requests.find(r => w.services.some(s => s.id === r.serviceId && s.projectId === w.activeProjectId))?.id ?? null;
-      setWorkspace(w); setDirty(false); setSelectedId(first); setOpenTabs(first ? [first] : []);
+      acceptWorkspace(w, false); responseEpoch.current++;
+      putExecutions(() => ({}));
+      setLoadVersion(version => version + 1);
+      setSelectedId(first); setOpenTabs(first ? [first] : []);
     }
     catch (error) { setNotice(errorMessage(error)); }
-    finally { setLoading(false); }
+    finally { lock.current = false; setBusy(false); setLoading(false); }
   }, []);
   useEffect(() => { if (desktop) void load(); }, [load]);
   useEffect(() => {
@@ -41,52 +60,81 @@ export function useWorkbench() {
   }, [dirty]);
   const mutate = (change: (w: Workspace) => Workspace) => {
     if (lock.current) return;
-    setWorkspace(w => change(w));
-    setDirty(true); setPreview(null);
+    acceptWorkspace(change(wsRef.current), true);
+    setPreview(null);
   };
   const saveSnapshot = async (w: Workspace) => {
     const saved = await api.save(w);
-    setWorkspace(saved); wsRef.current = saved; setDirty(false);
+    acceptWorkspace(saved, false);
     return saved;
   };
   const save = async () => {
-    if (lock.current) return;
+    if (lock.current || loading || confirmation) return;
     if (!desktop) { setNotice('仅内存预览，桌面版才可保存和发送'); return; }
     lock.current = true; setBusy(true);
-    try { await saveSnapshot(workspace); setNotice('工作区已保存'); }
+    try { if (dirtyRef.current) await saveSnapshot(wsRef.current); }
     catch (e) { setNotice(errorMessage(e)); }
     finally { lock.current = false; setBusy(false); }
   };
-  const switchContext = async (action: () => void) => {
-    if (lock.current) return;
-    if (dirty && !await confirm({ title: '有尚未保存的修改', message: '继续切换不会丢失草稿，修改仍保留在当前工作区中。请在退出前保存。', confirmLabel: '保留草稿并切换' })) return;
-    action(); setPreview(null);
+  const switchContext = async (action: () => void, change?: (w: Workspace) => Workspace) => {
+    if (lock.current || loading || confirmation) return;
+    lock.current = true; setBusy(true);
+    try {
+      const next = change ? change(wsRef.current) : wsRef.current;
+      if (desktop && (dirtyRef.current || next !== wsRef.current)) await saveSnapshot(next);
+      else if (next !== wsRef.current) acceptWorkspace(next, true);
+      action(); setPreview(null);
+    } catch (error) { setNotice(`自动保存失败，已保留草稿并停止切换：${errorMessage(error)}`); }
+    finally { lock.current = false; setBusy(false); }
   };
   const project = workspace.projects.find(p => p.id === workspace.activeProjectId);
   const environment = workspace.environments.find(e => e.id === project?.activeEnvironmentId);
   const projectRequests = workspace.requests.filter(r => workspace.services.some(s => s.id === r.serviceId && s.projectId === project?.id));
-  const request = projectRequests.find(r => r.id === selectedId);
+  const storedRequest = projectRequests.find(r => r.id === selectedId);
+  const request = storedRequest ? resolveRequest(storedRequest, environment?.id ?? null) : undefined;
+  const selectedKey = selectedId && environment ? executionKey(selectedId, environment.id) : null;
+  useEffect(() => {
+    if (!desktop || !selectedId || !environment?.id || !storedRequest) return;
+    const key = executionKey(selectedId, environment.id);
+    const epoch = responseEpoch.current;
+    let cancelled = false;
+    // Fetch only on context entry. Never let an old DB read overwrite an execution.
+    if (!executionRef.current[key]) {
+      void api.loadResponse(selectedId, environment.id).then(response => {
+        if (cancelled || epoch !== responseEpoch.current || executionRef.current[key] || !response) return;
+        putExecutions(prev => ({ ...prev, [key]: {
+          id: response.executionId, requestId: selectedId, environment: response.environmentName,
+          requestName: storedRequest.name, running: false, response,
+        } }));
+      }).catch(error => { if (!cancelled) setNotice(`读取响应缓存失败：${errorMessage(error)}`); });
+    }
+    return () => { cancelled = true; };
+  }, [selectedId, environment?.id, storedRequest?.id, loadVersion]);
   useEffect(() => {
     setOpenTabs(tabs => tabs.filter(id => workspace.requests.some(r => r.id === id)));
-    if (selectedId && !request) { setSelectedId(null); setPreview(null); }
-  }, [workspace.requests, selectedId, request]);
+    if (selectedId && !storedRequest) { setSelectedId(null); setPreview(null); }
+  }, [workspace.requests, selectedId, storedRequest]);
+  const updateRequest = (patch: Partial<RequestDefinition>) => {
+    if (lock.current || !selectedId) return;
+    try { mutate(w => updateEnvironmentRequest(w, selectedId, environment?.id ?? null, patch)); }
+    catch (error) { setNotice(errorMessage(error)); }
+  };
   const execute = async (previewOnly = false, exportOnly = false) => {
-    if (lock.current || !request || !environment || (!previewOnly && !exportOnly && running.current.has(request.id))) return;
+    if (lock.current || loading || confirmation || !request || !environment || (!previewOnly && !exportOnly && running.current.has(executionKey(request.id, environment.id)))) return;
     if (!desktop) { setNotice('仅内存预览，桌面版才可保存和发送'); return; }
     lock.current = true; setBusy(true);
     // Capture identity before any asynchronous confirmation; environment changes cannot retarget it.
     const requestId = request.id;
     const environmentId = environment.id;
+    const key = executionKey(requestId, environmentId);
     const executionId = uid();
     let preparationReleased = false;
     try {
-      if (dirty) {
-        if (!await confirm({ title: '先保存配置', message: '原生执行使用已保存工作区。是否保存全部修改后继续？', confirmLabel: '保存并继续' })) return;
-        await saveSnapshot(workspace);
-      }
-      const capturedRequest = wsRef.current.requests.find(r => r.id === requestId);
-      if (!capturedRequest) throw new Error('接口已不存在');
-      const input: ExecuteInput = { executionId, environmentId, request: structuredClone(capturedRequest), temporaryVariables: structuredClone(temporary[requestId] ?? []), productionConfirmed: false };
+      if (dirtyRef.current) await saveSnapshot(wsRef.current);
+      const savedRequest = wsRef.current.requests.find(r => r.id === requestId);
+      if (!savedRequest) throw new Error('接口已不存在');
+      const capturedRequest = resolveRequest(savedRequest, environmentId);
+      const input: ExecuteInput = { executionId, environmentId, request: structuredClone(capturedRequest), temporaryVariables: structuredClone(temporary[key] ?? []), productionConfirmed: false };
       if (exportOnly) {
         const curl = await api.exportCurl(input);
         try { await navigator.clipboard.writeText(curl); }
@@ -101,18 +149,26 @@ export function useWorkbench() {
         if (!await confirm({ title: '确认发送到生产环境', message: `${capturedRequest.method} ${prepared.url}\n环境：${prepared.environmentName}。此操作可能修改真实数据，取消请求不代表回滚。`, confirmLabel: '确认生产发送', danger: true })) return;
         input.productionConfirmed = true;
       }
-      running.current.add(requestId);
-      setExecutions(prev => ({ ...prev, [requestId]: { id: executionId, requestId, environment: prepared.environmentName, requestName: capturedRequest.name, running: true } }));
+      running.current.add(key);
+      putExecutions(prev => ({ ...prev, [key]: { id: executionId, requestId, environment: prepared.environmentName, requestName: capturedRequest.name, running: true } }));
       lock.current = false; setBusy(false);
       preparationReleased = true;
       try {
         const result = await api.send(input);
         const response = responseForExecution(executionId, result);
         if (!response) throw new Error('响应执行 ID 不匹配，已拒绝显示');
-        setExecutions(prev => prev[requestId]?.id === executionId ? { ...prev, [requestId]: { ...prev[requestId], response, running: false } } : prev);
+        putExecutions(prev => prev[key]?.id === executionId ? { ...prev, [key]: { ...prev[key], response } } : prev);
+        // A request may have been deleted while the network was running.
+        if (wsRef.current.requests.some(r => r.id === requestId) && wsRef.current.environments.some(e => e.id === environmentId)) {
+          try { await api.saveResponse(requestId, environmentId, response); }
+          catch (error) { setNotice(`响应已收到，但本地缓存保存失败：${errorMessage(error)}`); }
+        }
       } catch (error) {
-        setExecutions(prev => prev[requestId]?.id === executionId ? { ...prev, [requestId]: { ...prev[requestId], error: errorMessage(error), running: false } } : prev);
-      } finally { running.current.delete(requestId); }
+        putExecutions(prev => prev[key]?.id === executionId ? { ...prev, [key]: { ...prev[key], error: errorMessage(error) } } : prev);
+      } finally {
+        running.current.delete(key);
+        putExecutions(prev => prev[key]?.id === executionId ? { ...prev, [key]: { ...prev[key], running: false } } : prev);
+      }
     } catch (error) { setNotice(errorMessage(error)); }
     finally {
       // A completed network call must not release a different request's preparation lock.
@@ -120,22 +176,22 @@ export function useWorkbench() {
     }
   };
   const cancel = async () => {
-    const execution = selectedId ? executions[selectedId] : null;
+    const key = selectedKey;
+    const execution = key ? executionRef.current[key] : null;
     if (!execution?.running || execution.cancelRequested) return;
     try {
       await api.cancel(execution.id);
-      setExecutions(prev => prev[execution.requestId]?.id === execution.id ? { ...prev, [execution.requestId]: { ...prev[execution.requestId], cancelRequested: true } } : prev);
+      putExecutions(prev => prev[key!]?.id === execution.id ? { ...prev, [key!]: { ...prev[key!], cancelRequested: true } } : prev);
     } catch (error) { setNotice(errorMessage(error)); }
   };
-  const closeTab = (id: string) => {
-    if (lock.current || confirmation) return;
+  const closeTab = (id: string) => switchContext(() => {
     const remaining = openTabs.filter(tab => tab !== id);
     setOpenTabs(remaining);
     if (selectedId === id) {
       setSelectedId([...remaining].reverse().find(tab => projectRequests.some(r => r.id === tab)) ?? null);
       setPreview(null);
     }
-  };
+  });
   const runLocalAction = async (action: () => Promise<void>, nativeOnly = false) => {
     if (lock.current || confirmation) return false;
     if (nativeOnly && !desktop) { setNotice('此功能需要桌面模式；浏览器仅保留内存草稿。'); return false; }
@@ -146,7 +202,7 @@ export function useWorkbench() {
   };
   const applyImport = (next: Workspace) => {
     const newRequest = next.requests.find(r => !wsRef.current.requests.some(old => old.id === r.id) && next.services.some(s => s.id === r.serviceId && s.projectId === next.activeProjectId));
-    setWorkspace(next); wsRef.current = next; setDirty(true); setPreview(null);
+    acceptWorkspace(next, true); setPreview(null);
     if (newRequest) { setSelectedId(newRequest.id); setOpenTabs(tabs => [...tabs, newRequest.id]); }
     else setSelectedId(null);
     setNotice('已导入为未保存草稿；请检查地址、秘密变量和文件项后保存。');
@@ -181,21 +237,52 @@ export function useWorkbench() {
     const path = await api.backup();
     setNotice(`已备份已保存数据（不含内存草稿）：${path}`);
   }, true);
+  const clearResponse = async () => {
+    if (!selectedKey || !selectedId || !environment || running.current.has(selectedKey)) return;
+    const key = selectedKey, requestId = selectedId, environmentId = environment.id;
+    await runLocalAction(async () => {
+      await api.clearResponse(requestId, environmentId);
+      responseEpoch.current++;
+      putExecutions(prev => { const next = { ...prev }; delete next[key]; return next; });
+    }, true);
+  };
+  const cleanData = (clearBodies: boolean): Promise<boolean> => {
+    if (running.current.size) { setNotice('仍有请求进行中，请完成或取消后再清理。'); return Promise.resolve(false); }
+    return runLocalAction(async () => {
+      if (clearBodies) await saveSnapshot(cleanRequestBodies(wsRef.current));
+      try { await api.clearResponses(); }
+      catch (error) {
+        throw new Error(`${clearBodies ? '请求正文和表单已清空并保存；' : ''}响应缓存清理失败：${errorMessage(error)}`);
+      }
+      responseEpoch.current++;
+      putExecutions(() => ({}));
+      setPreview(null);
+      try { await api.compactStorage(); }
+      catch (error) { throw new Error(`数据已清理，但空间回收失败，可稍后重试：${errorMessage(error)}`); }
+      setNotice(clearBodies ? '已清空所有项目的请求正文、表单内容及响应缓存；接口和其他配置保留。' : '已清空全部响应缓存并回收空间；请求配置保留。');
+    }, true);
+  };
   return {
     workspace, project, environment, request, selectedId, loading, busy, dirty, notice, setNotice,
-    confirmation, setConfirmation, confirm, mutate, save, execute, cancel, preview, load,
+    confirmation, setConfirmation, confirm, mutate, updateRequest, save, execute, cancel, preview, load, clearResponse, cleanData,
     openTabs, closeTab, copyCurl: () => execute(false, true), importProjectText, importCurlText, readProject, writeProject, pickFile, backup,
     hasRunning: Object.values(executions).some(execution => execution.running),
-    execution: selectedId ? executions[selectedId] : undefined,
-    temporary: temporary[selectedId ?? ''] ?? [],
-    setTemporary: (pairs: Pair[]) => { if (!lock.current && selectedId) { setTemporary(prev => ({ ...prev, [selectedId]: pairs })); setPreview(null); } },
+    execution: selectedKey ? executions[selectedKey] : undefined,
+    temporary: selectedKey ? temporary[selectedKey] ?? [] : [],
+    setTemporary: (pairs: Pair[]) => { if (!lock.current && selectedKey) { setTemporary(prev => ({ ...prev, [selectedKey]: pairs })); setPreview(null); } },
     selectRequest: (id: string) => {
       if (selectedId === id || !projectRequests.some(r => r.id === id)) return;
-      void switchContext(() => { setSelectedId(id); setOpenTabs(tabs => tabs.includes(id) ? tabs : [...tabs, id]); });
+      return switchContext(() => { setSelectedId(id); setOpenTabs(tabs => tabs.includes(id) ? tabs : [...tabs, id]); });
     },
-    selectProject: (id: string) => void switchContext(() => { mutate(w => ({ ...w, activeProjectId: id })); setSelectedId(null); }),
-    selectEnvironment: (id: string) => void switchContext(() => mutate(w => ({ ...w, projects: w.projects.map(p => p.id === project?.id ? { ...p, activeEnvironmentId: id || null } : p) }))),
-    loadDemo: () => { if (!desktop) { setWorkspace(demoWorkspace()); setSelectedId('demo-list'); setOpenTabs(['demo-list']); setDirty(false); } },
+    selectProject: (id: string) => {
+      if (id === project?.id || !workspace.projects.some(p => p.id === id)) return;
+      return switchContext(() => setSelectedId(null), w => ({ ...w, activeProjectId: id }));
+    },
+    selectEnvironment: (id: string) => {
+      if (id === (environment?.id ?? '') || (id && !workspace.environments.some(e => e.id === id && e.projectId === project?.id))) return;
+      return switchContext(() => {}, w => ({ ...w, projects: w.projects.map(p => p.id === project?.id ? { ...p, activeEnvironmentId: id || null } : p) }));
+    },
+    loadDemo: () => { if (!desktop) { acceptWorkspace(demoWorkspace(), false); setSelectedId('demo-list'); setOpenTabs(['demo-list']); } },
   };
 }
 export type Workbench = ReturnType<typeof useWorkbench>;

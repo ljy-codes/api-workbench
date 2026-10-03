@@ -1,4 +1,4 @@
-import type { AuthConfig, Pair, VariableScope, Workspace } from '../types';
+import type { AuthConfig, Pair, RequestConfig, VariableScope, Workspace } from '../types';
 import { uid } from './workspace';
 
 // Exchange is a draft-only boundary, not a database write or a credential backup.
@@ -14,6 +14,8 @@ const TOKEN = /^[!#$%&'*+\-.^_`|~0-9A-Za-z]+$/;
 // (untrusted, long incomplete references must not cause regex backtracking).
 const REF = /^\{\{([^{}\u0000-\u001f\u007f]+)\}\}$/;
 const DANGEROUS_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+const CONFIG_REQUIRED = ['query', 'headers', 'bodyType', 'body', 'timeoutMs'];
+const CONFIG_OPTIONAL = ['auth', 'form'];
 
 function check(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
@@ -45,6 +47,12 @@ function bool(value: unknown) {
   check(typeof value === 'boolean', '项目文件布尔字段类型无效');
 }
 
+function color(o: Record<string, unknown>) {
+  if (Object.hasOwn(o, 'color')) {
+    check(typeof o.color === 'string' && o.color.length === 7 && /^#[0-9a-f]{6}$/i.test(o.color), '项目颜色字段必须为 #RRGGBB');
+  }
+}
+
 function array(value: unknown): unknown[] {
   check(Array.isArray(value), '项目文件列表字段类型无效');
   check(value.length <= MAX_ARRAY, '项目文件列表数量超过上限');
@@ -68,11 +76,24 @@ function auth(value: unknown) {
   }
 }
 
-function entities(w: Workspace): { id: string }[] {
+function configPairs(c: RequestConfig): Pair[] {
+  return [...c.query, ...c.headers, ...(c.form ?? [])];
+}
+
+// Legacy entities still require globally unique IDs. Variant templates do not:
+// each copied query/header/form array has its own row-ID namespace.
+function baseEntities(w: Workspace): { id: string }[] {
   return [
     ...COLLECTIONS.flatMap<{ id: string }>(key => w[key]),
     ...w.services.flatMap(s => s.headers ?? []),
-    ...w.requests.flatMap(r => [...r.query, ...r.headers, ...(r.form ?? [])]),
+    ...w.requests.flatMap(configPairs),
+  ];
+}
+
+function entities(w: Workspace): { id: string }[] {
+  return [
+    ...baseEntities(w),
+    ...w.requests.flatMap(r => Object.values(r.environmentConfigs ?? {}).flatMap(configPairs)),
   ];
 }
 
@@ -84,28 +105,39 @@ function validate(value: unknown): asserts value is Workspace {
   check((o.projects as unknown[]).length === 1, '交换文件必须恰好包含一个项目');
   let count = 0;
   const seen = new Set<string>();
-  const entity = (v: unknown, fields: string[], optional: string[] = []) => {
+  const countEntity = () => check(++count <= MAX_ENTITIES, '项目实体数量超过上限');
+  const entity = (v: unknown, fields: string[], optional: string[] = [], ids = seen) => {
     const e = object(v, ['id', ...fields], optional);
     id(e.id);
-    check(!seen.has(e.id), '项目文件包含重复 ID');
-    seen.add(e.id);
-    check(++count <= MAX_ENTITIES, '项目实体数量超过上限');
+    check(!ids.has(e.id), '项目文件包含重复 ID');
+    ids.add(e.id);
+    countEntity();
     return e;
   };
-  const pairs = (v: unknown, form = false) => {
+  const pairs = (v: unknown, form = false, local = false) => {
+    const ids = local ? new Set<string>() : seen;
     for (const item of array(v)) {
-      const p = entity(item, ['key', 'value', 'enabled', ...(form ? ['kind'] : [])]);
+      const p = entity(item, ['key', 'value', 'enabled', ...(form ? ['kind'] : [])], [], ids);
       string(p.key); string(p.value); bool(p.enabled);
       if (form) check(p.kind === 'text' || p.kind === 'file', '项目表单类型字段无效');
     }
   };
+  const config = (c: Record<string, unknown>, local = false) => {
+    string(c.body);
+    check(['none', 'json', 'text', 'form', 'multipart'].includes(c.bodyType as string), '项目请求正文类型无效');
+    check(Number.isSafeInteger(c.timeoutMs) && (c.timeoutMs as number) >= 1 && (c.timeoutMs as number) <= 300000, '项目请求超时字段无效');
+    pairs(c.query, false, local); pairs(c.headers, false, local); auth(c.auth);
+    if (Object.hasOwn(c, 'form')) pairs(c.form, true, local);
+  };
   for (const item of o.projects as unknown[]) {
-    const p = entity(item, ['name', 'activeEnvironmentId']);
+    const p = entity(item, ['name', 'activeEnvironmentId'], ['color']);
     string(p.name, true, 1024); nullableId(p.activeEnvironmentId);
+    color(p);
   }
   for (const item of o.environments as unknown[]) {
-    const e = entity(item, ['projectId', 'name', 'isProduction']);
+    const e = entity(item, ['projectId', 'name', 'isProduction'], ['color']);
     id(e.projectId); string(e.name, true, 1024); bool(e.isProduction);
+    color(e);
   }
   for (const item of o.services as unknown[]) {
     const s = entity(item, ['projectId', 'name'], ['headers', 'auth']);
@@ -128,15 +160,24 @@ function validate(value: unknown): asserts value is Workspace {
     id(f.serviceId); nullableId(f.parentId); string(f.name, true, 1024);
   }
   for (const item of o.requests as unknown[]) {
-    const r = entity(item, ['serviceId', 'folderId', 'name', 'method', 'path', 'query', 'headers', 'bodyType', 'body', 'timeoutMs'], ['auth', 'form']);
+    const r = entity(item, ['serviceId', 'folderId', 'name', 'method', 'path', ...CONFIG_REQUIRED], [...CONFIG_OPTIONAL, 'environmentConfigs']);
     id(r.serviceId); nullableId(r.folderId); string(r.name, true, 1024);
     string(r.method, true, 64); check(TOKEN.test(r.method), '项目请求方法字段无效');
-    string(r.path); string(r.body);
+    string(r.path);
     check(!/[?#\u0000-\u001f\u007f]/.test(r.path), '项目路径字段不能包含 Query、片段或控制字符，请使用 Query 列表');
-    check(['none', 'json', 'text', 'form', 'multipart'].includes(r.bodyType as string), '项目请求正文类型无效');
-    check(Number.isSafeInteger(r.timeoutMs) && (r.timeoutMs as number) >= 1 && (r.timeoutMs as number) <= 300000, '项目请求超时字段无效');
-    pairs(r.query); pairs(r.headers); auth(r.auth);
-    if (Object.hasOwn(r, 'form')) pairs(r.form, true);
+    config(r);
+    if (Object.hasOwn(r, 'environmentConfigs')) {
+      const value = r.environmentConfigs;
+      check(value !== null && typeof value === 'object' && !Array.isArray(value), '项目环境配置对象结构无效');
+      const keys = Object.keys(value);
+      check(keys.length <= MAX_ARRAY, '项目环境配置数量超过上限');
+      const configs = object(value, [], keys);
+      for (const [environmentId, variant] of Object.entries(configs)) {
+        id(environmentId);
+        countEntity();
+        config(object(variant, CONFIG_REQUIRED, CONFIG_OPTIONAL), true);
+      }
+    }
   }
   for (const item of o.variables as unknown[]) {
     const v = entity(item, ['projectId', 'scope', 'ownerId', 'name', 'value', 'isSecret']);
@@ -183,6 +224,10 @@ function references(w: Workspace) {
   for (const r of w.requests) {
     check(services.has(r.serviceId), '项目请求服务引用不存在');
     check(r.folderId === null || folders.get(r.folderId)?.serviceId === r.serviceId, '项目请求目录引用无效');
+    for (const environmentId of Object.keys(r.environmentConfigs ?? {})) {
+      check(envs.has(environmentId) && envs.get(environmentId)!.projectId === services.get(r.serviceId)!.projectId,
+        '项目请求环境配置引用不存在或跨项目');
+    }
   }
   const variables = new Set<string>();
   for (const v of w.variables) {
@@ -214,7 +259,7 @@ function parse(text: string): Workspace {
   try { value = JSON.parse(text); }
   catch { throw new Error('项目文件不是有效的 JSON'); }
   const root = object(value, ['format', 'version', 'project']);
-  check(root.format === 'api-workbench' && root.version === 1, '不支持的项目交换格式或版本');
+  check(root.format === 'api-workbench' && (root.version === 1 || root.version === 2), '不支持的项目交换格式或版本');
   validate(root.project);
   return root.project;
 }
@@ -273,12 +318,14 @@ function scrub(w: Workspace, allocate = allocator(w)) {
     cleanAuth(s.auth, 'service', s.id);
   }
   for (const r of w.requests) {
-    cleanPairs(r.headers, 'request', r.id, true);
-    cleanPairs(r.query, 'request', r.id, false);
-    cleanAuth(r.auth, 'request', r.id);
-    for (const field of r.form ?? []) {
-      if (field.kind === 'file') { field.value = ''; field.enabled = false; }
-      else if (sensitive(field.key)) field.value = protect(field.value, 'request', r.id);
+    for (const c of [r, ...Object.values(r.environmentConfigs ?? {})]) {
+      cleanPairs(c.headers, 'request', r.id, true);
+      cleanPairs(c.query, 'request', r.id, false);
+      cleanAuth(c.auth, 'request', r.id);
+      for (const field of c.form ?? []) {
+        if (field.kind === 'file') { field.value = ''; field.enabled = false; }
+        else if (sensitive(field.key)) field.value = protect(field.value, 'request', r.id);
+      }
     }
   }
   for (const v of w.variables) {
@@ -290,6 +337,15 @@ function selectActive(w: Workspace) {
   const p = w.projects[0];
   w.activeProjectId = p.id;
   if (!w.environments.some(e => e.id === p.activeEnvironmentId)) p.activeEnvironmentId = w.environments[0]?.id ?? null;
+}
+
+// v1 remains readable and is still emitted for legacy-only projects. New fields
+// require v2 so older apps fail closed instead of dropping environment isolation
+// or colors. Readers accept both versions through the same strict validation.
+function exchangeVersion(w: Workspace): 1 | 2 {
+  return w.projects.some(p => Object.hasOwn(p, 'color'))
+    || w.environments.some(e => Object.hasOwn(e, 'color'))
+    || w.requests.some(r => Object.hasOwn(r, 'environmentConfigs')) ? 2 : 1;
 }
 
 /**
@@ -316,14 +372,15 @@ export function exportProject(workspace: Workspace, projectId: string): string {
   scrub(selected);
   selectActive(selected);
   validate(selected);
-  const text = JSON.stringify({ format: 'api-workbench', version: 1, project: selected }, null, 2);
+  const text = JSON.stringify({ format: 'api-workbench', version: exchangeVersion(selected), project: selected }, null, 2);
   boundedText(text);
   return text;
 }
 
 /**
  * 严格导入单项目为新草稿。上限：UTF-8 10 MiB、单字段 2 Mi 字符、
- * 单列表 10,000、总实体（含 Pair/Form）20,000、JSON/目录深度 32。
+ * 单列表/环境配置映射 10,000、总实体（含配置对象及其 Pair/Form）20,000、
+ * JSON/目录深度 32。兼容 v1/v2；基础字段作为旧版缺省模板原样保留。
  * 重新分配所有 ID，保留目标 revision 与无关数据；不自动保存或发起请求。
  * 交换文件的凭据一律清空，文件字段须重新选择；正文仍需人工检查。
  */
@@ -333,20 +390,29 @@ export function importProject(workspace: Workspace, text: string): Workspace {
   scrub(imported, allocate);
   validate(imported);
   selectActive(imported);
-  const remap = new Map(entities(imported).map(e => [e.id, allocate()]));
+  const remap = new Map(baseEntities(imported).map(e => [e.id, allocate()]));
   const mapped = (value: string) => {
     const result = remap.get(value);
     check(result, '项目实体引用无法重映射');
     return result;
   };
-  for (const e of entities(imported)) e.id = mapped(e.id);
+  for (const e of baseEntities(imported)) e.id = mapped(e.id);
   imported.activeProjectId = mapped(imported.activeProjectId!);
   for (const p of imported.projects) if (p.activeEnvironmentId !== null) p.activeEnvironmentId = mapped(p.activeEnvironmentId);
   for (const e of [...imported.environments, ...imported.services, ...imported.bindings, ...imported.variables]) e.projectId = mapped(e.projectId);
   for (const e of [...imported.bindings, ...imported.folders, ...imported.requests]) e.serviceId = mapped(e.serviceId);
   for (const b of imported.bindings) b.environmentId = mapped(b.environmentId);
   for (const f of imported.folders) if (f.parentId !== null) f.parentId = mapped(f.parentId);
-  for (const r of imported.requests) if (r.folderId !== null) r.folderId = mapped(r.folderId);
+  for (const r of imported.requests) {
+    if (r.folderId !== null) r.folderId = mapped(r.folderId);
+    if (r.environmentConfigs) {
+      r.environmentConfigs = Object.fromEntries(Object.entries(r.environmentConfigs).map(([environmentId, c]) => {
+        // Allocate per occurrence: an old ID may belong to multiple copied rows.
+        for (const p of configPairs(c)) p.id = allocate();
+        return [mapped(environmentId), c];
+      }));
+    }
+  }
   for (const v of imported.variables) v.ownerId = mapped(v.ownerId);
   const names = new Set(workspace.projects.map(p => p.name));
   const p = imported.projects[0];
@@ -356,7 +422,7 @@ export function importProject(workspace: Workspace, text: string): Workspace {
     p.name = base.slice(0, 1024 - ending.length).replace(/[\uD800-\uDBFF]$/, '') + ending;
   }
   validate(imported);
-  boundedText(JSON.stringify({ format: 'api-workbench', version: 1, project: imported }));
+  boundedText(JSON.stringify({ format: 'api-workbench', version: exchangeVersion(imported), project: imported }));
   return {
     ...workspace, activeProjectId: p.id,
     projects: [...workspace.projects, ...imported.projects],

@@ -29,7 +29,9 @@ export function cascadeDelete(workspace: Workspace, kind: EntityKind, id: string
   w.services = w.services.filter(s => !services.has(s.id));
   w.environments = w.environments.filter(e => !environments.has(e.id));
   w.folders = w.folders.filter(f => !folders.has(f.id));
-  w.requests = w.requests.filter(r => !requests.has(r.id));
+  w.requests = w.requests.filter(r => !requests.has(r.id)).map(r => r.environmentConfigs ? {
+    ...r, environmentConfigs: Object.fromEntries(Object.entries(r.environmentConfigs).filter(([environmentId]) => !environments.has(environmentId))),
+  } : r);
   w.bindings = w.bindings.filter(b => !bindings.has(b.id));
   w.variables = w.variables.filter(v => !projects.has(v.projectId) && !removed[v.scope].has(v.ownerId));
   if (w.activeProjectId && projects.has(w.activeProjectId)) w.activeProjectId = w.projects[0]?.id ?? null;

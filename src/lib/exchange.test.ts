@@ -195,7 +195,7 @@ describe('单项目交换纯函数', () => {
   it('拒绝畸形 JSON、版本、原型属性、过深/超量/超大输入；错误不回显内容', () => {
     for (const text of [
       '{"private-secret":',
-      JSON.stringify({ format: 'api-workbench', version: 2, project: fixture() }),
+      JSON.stringify({ format: 'api-workbench', version: 3, project: fixture() }),
       envelope(fixture()).replace('"revision":17', '"__proto__":{"polluted":true},"revision":17'),
       envelope(fixture()).replace('"revision":17', '"constructor":{},"revision":17'),
       '['.repeat(100) + '0' + ']'.repeat(100),

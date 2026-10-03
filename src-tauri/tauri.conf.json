@@ -1,7 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "接口工具",
-  "version": "0.2.0",
+  "productName": "EnvDock",
+  "mainBinaryName": "EnvDock",
+  "version": "1.0.0",
   "identifier": "local.apiworkbench.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -10,22 +11,55 @@
     "frontendDist": "../dist"
   },
   "app": {
-    "windows": [{
-      "label": "main",
-      "title": "接口工具 · API Workbench",
-      "width": 1440,
-      "height": 940,
-      "minWidth": 1000,
-      "minHeight": 700,
-      "backgroundColor": "#101116"
-    }],
+    "windows": [
+      {
+        "label": "main",
+        "title": "EnvDock · API Workbench",
+        "width": 1440,
+        "height": 940,
+        "minWidth": 1000,
+        "minHeight": 700,
+        "backgroundColor": "#101116"
+      }
+    ],
     "security": {
       "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src ipc: http://ipc.localhost"
     }
   },
   "bundle": {
-    "active": false,
-    "targets": ["nsis"],
-    "icon": ["icons/icon.ico"]
+    "active": true,
+    "targets": [
+      "nsis"
+    ],
+    "icon": [
+      "icons/icon.ico"
+    ],
+    "publisher": "ljy-codes",
+    "shortDescription": "Local-first API testing workbench",
+    "windows": {
+      "allowDowngrades": false,
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper",
+        "silent": true
+      },
+      "nsis": {
+        "installMode": "currentUser",
+        "languages": [
+          "SimpChinese",
+          "English"
+        ],
+        "displayLanguageSelector": false,
+        "startMenuFolder": "EnvDock",
+        "installerHooks": "installer-hooks.nsh",
+        "compression": "lzma",
+        "template": "installer/envdock.nsi",
+        "installerIcon": "icons/icon.ico",
+        "uninstallerIcon": "icons/icon.ico",
+        "sidebarImage": "installer/sidebar.bmp",
+        "headerImage": "installer/header.bmp",
+        "uninstallerHeaderImage": "installer/header.bmp"
+      }
+    },
+    "copyright": "Copyright (c) 2026 ljy-codes"
   }
 }

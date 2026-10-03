@@ -20,3 +20,4 @@ ApiWorkbenchData/
 *.sqlite
 *.sqlite3
 backups/
+src-tauri/installer/plugins/
