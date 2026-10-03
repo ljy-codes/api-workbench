@@ -1,0 +1,38 @@
+{
+  "name": "api-workbench",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "tauri": "tauri",
+    "desktop": "powershell -ExecutionPolicy Bypass -File scripts/dev.ps1"
+  },
+  "dependencies": {
+    "@codemirror/lang-json": "^6",
+    "@codemirror/theme-one-dark": "^6",
+    "@tauri-apps/api": "^2",
+    "@uiw/react-codemirror": "^4",
+    "lucide-react": "^0.468.0",
+    "react": "^19",
+    "react-dom": "^19",
+    "zustand": "^5"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@testing-library/jest-dom": "^6",
+    "@testing-library/react": "^16",
+    "@testing-library/user-event": "^14",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^5",
+    "jsdom": "^26",
+    "typescript": "^5",
+    "vite": "^7",
+    "vitest": "^4.1.11"
+  }
+}
