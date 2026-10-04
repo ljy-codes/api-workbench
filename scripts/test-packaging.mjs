@@ -6,6 +6,24 @@ const root = new URL('../', import.meta.url);
 const read = path => readFileSync(new URL(path, root), 'utf8');
 const config = JSON.parse(read('src-tauri/tauri.conf.json'));
 
+test('project MIT license matches package metadata and preserves third-party ownership', () => {
+  const license = read('LICENSE');
+  assert.match(license, /^MIT License/);
+  assert.match(license, /Copyright \(c\) 2026 ljy-codes/);
+  assert.match(license, /Permission is hereby granted, free of charge/);
+  assert.match(license, /THE SOFTWARE IS PROVIDED "AS IS"/);
+  assert.equal(JSON.parse(read('package.json')).license, 'MIT');
+  assert.equal(JSON.parse(read('package-lock.json')).packages[''].license, 'MIT');
+  assert.match(read('src-tauri/Cargo.toml'), /^license = "MIT"$/m);
+  assert.match(read('src-tauri/installer/TAURI-LICENSE-MIT'), /Tauri Apps Contributors/);
+});
+
+test('installer and portable delivery directories include the project license', () => {
+  for (const path of ['scripts/build-installer.ps1', 'scripts/build-preview.ps1']) {
+    assert.ok(read(path).includes("Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination (Join-Path $output 'LICENSE.txt')"));
+  }
+});
+
 test('EnvDock current-user NSIS distribution retains the existing app identity', () => {
   assert.equal(config.productName, 'EnvDock');
   assert.equal(config.mainBinaryName, 'EnvDock');

@@ -2,6 +2,7 @@
 name = "api-workbench"
 version = "1.0.0"
 description = "Local-first API workbench"
+license = "MIT"
 edition = "2021"
 
 [lib]

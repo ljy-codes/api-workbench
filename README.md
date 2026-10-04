@@ -2,6 +2,14 @@
 
 Windows 优先的纯本地接口调试工具。首个交付版本为 **1.0.0**，提供 Windows x64 安装版，另可构建便携预览版。功能范围见下文，并非完整 Postman 替代品。GitHub 仓库继续使用 `api-workbench`，软件英文名为 **EnvDock**。
 
+## 开源许可
+
+EnvDock 原创代码采用 **MIT License**，版权声明为 `Copyright (c) 2026 ljy-codes`，完整条款见根目录 [LICENSE](LICENSE)。安装版及便携预览的交付目录附带 `LICENSE.txt`。
+
+第三方代码、依赖及其版权声明仍适用各自许可证，不因项目采用 MIT 而改变。Tauri 安装模板的许可保留于 `src-tauri/installer/TAURI-LICENSE-MIT`，安装版交付目录继续附带第三方许可文件。
+
+MIT 是源码使用许可，不是 Windows Authenticode 数字签名；当前 EXE 仍未签名。
+
 ## Windows 安装版
 
 运行 `EnvDock-1.0.0-windows-x64-setup.exe`，按提示安装。安装与卸载采用深色向导，欢迎页列出功能概要。仅为当前 Windows 用户安装，不需要把数据库放入程序目录。
