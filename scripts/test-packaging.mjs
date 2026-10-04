@@ -80,3 +80,33 @@ test('complete uninstall is explicit, upgrade protected and checked before binar
   assert.match(cleanup, /SetErrorLevel 5/);
   assert.match(cleanup, /MB_DEFBUTTON2/);
 });
+
+test('runtime preparation precedes deferred upgrade removal and payload installation', () => {
+  const template = read('src-tauri/installer/envdock.nsi');
+  const dependencies = template.slice(template.indexOf('Section WebView2'), template.indexOf('Section Install'));
+  assert.match(dependencies, /Call EnvDockEnsureDependencies/);
+  assert.ok(dependencies.indexOf('Call EnvDockEnsureDependencies') < dependencies.indexOf('Call EnvDockUninstallPrevious'));
+  assert.doesNotMatch(dependencies, /UpdateMode.*(?:<>|!=).*1/);
+  const leave = template.slice(template.indexOf('Function PageLeaveReinstall'), template.indexOf('Function EnvDockUninstallPrevious'));
+  assert.match(leave, /StrCpy \$EnvDockPendingUninstall 1/);
+  assert.match(leave, /StrCpy \$EnvDockPreviousInstallDirectory \$INSTDIR/);
+  assert.doesNotMatch(leave, /ExecWait/);
+  const removal = template.slice(template.indexOf('Function EnvDockUninstallPrevious'), template.indexOf('; 5. Choose install directory page'));
+  assert.match(removal, /FileExists.*\$EnvDockUninstallDirectory/);
+  assert.doesNotMatch(removal, /FileExists.*"\$INSTDIR/);
+  assert.match(template, /Section EarlyChecks\s+Call EnvDockCheckInstalledVersion/);
+});
+
+test('dependency failures cannot silently continue and downloads never use NSISdl', () => {
+  const helper = read('src-tauri/installer/dependencies.nsh');
+  assert.match(helper, /nsExec::ExecToLog/);
+  assert.match(helper, /ensure-webview2\.ps1/);
+  assert.match(helper, /-WorkDirectory/);
+  assert.match(helper, /SetErrorLevel 1603/);
+  assert.match(helper, /SetErrorLevel 3010/);
+  assert.match(helper, /SetErrorLevel 1460/);
+  assert.match(helper, /Abort/);
+  assert.match(helper, /\$\{Silent\}/);
+  assert.match(helper, /\$PassiveMode = 1/);
+  assert.doesNotMatch(read('src-tauri/installer/envdock.nsi'), /NSISdl::download/);
+});

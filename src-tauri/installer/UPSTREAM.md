@@ -14,6 +14,11 @@ Local changes:
 - Full cleanup before removing the program/registration, with a checked exit code.
 - Uninstall-before-upgrade uses `/UPDATE`; it must always retain data.
 - Product registration removed when uninstalling, even if preserving the workspace.
+- WebView2 preparation uses the source-controlled PowerShell helper with bounded
+  official bootstrapper/standalone attempts, Authenticode verification and
+  post-install detection, including `/UPDATE`.
+- Wizard upgrade removal is deferred until the prerequisite section succeeds.
+  Script failure is never permission to continue writing the new payload.
 
 The generated `plugins` directory is ignored by Git. Always build via
 `scripts/build-installer.ps1`; it compiles the theme first and verifies fresh output.

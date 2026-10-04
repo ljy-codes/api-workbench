@@ -77,6 +77,11 @@ Var UpdateMode
 Var NoShortcutMode
 Var WixMode
 Var OldMainBinaryName
+Var EnvDockPendingUninstall
+Var EnvDockPreviousVersionComparison
+Var EnvDockPreviousWixKey
+Var EnvDockPreviousInstallDirectory
+Var EnvDockUninstallDirectory
 
 Name "${PRODUCTNAME}"
 BrandingText "${COPYRIGHT}"
@@ -323,6 +328,7 @@ Function PageReinstallUpdateSelection
   ${EndIf}
 FunctionEnd
 Function PageLeaveReinstall
+  StrCpy $EnvDockPendingUninstall 0
   ${NSD_GetState} $R2 $R1
 
   ; If migrating from Wix, always uninstall
@@ -360,6 +366,27 @@ Function PageLeaveReinstall
   ${EndIf}
 
   reinst_uninstall:
+    ; Do not remove the old application on a wizard page before dependencies
+    ; are ready. Keep the explicit same-version "uninstall" choice immediate.
+    ${If} $R0 != 0
+    ${OrIf} $WixMode = 1
+      StrCpy $EnvDockPendingUninstall 1
+      StrCpy $EnvDockPreviousVersionComparison $R0
+      StrCpy $EnvDockPreviousWixKey $R6
+      StrCpy $EnvDockPreviousInstallDirectory $INSTDIR
+    ${Else}
+      Call EnvDockUninstallPrevious
+    ${EndIf}
+  reinst_done:
+FunctionEnd
+
+Function EnvDockUninstallPrevious
+    ; The directory page may have selected a NEW destination since deferral.
+    ; Verify removal at the old destination, without mutating the new $INSTDIR.
+    StrCpy $EnvDockUninstallDirectory $INSTDIR
+    ${If} $EnvDockPendingUninstall = 1
+      StrCpy $EnvDockUninstallDirectory $EnvDockPreviousInstallDirectory
+    ${EndIf}
     HideWindow
     ClearErrors
 
@@ -368,6 +395,7 @@ Function PageLeaveReinstall
       ExecWait '$R1' $0
     ${Else}
       ReadRegStr $4 SHCTX "${MANUPRODUCTKEY}" ""
+      StrCpy $EnvDockUninstallDirectory $4
       ReadRegStr $R1 SHCTX "${UNINSTKEY}" "UninstallString"
       ; Uninstall-before-upgrade is not a user-requested data removal.
       ${If} $R0 = 1
@@ -384,7 +412,7 @@ Function PageLeaveReinstall
     ${IfThen} ${Errors} ${|} StrCpy $0 2 ${|} ; ExecWait failed, set fake exit code
 
     ${If} $0 <> 0
-    ${OrIf} ${FileExists} "$INSTDIR\${MAINBINARYNAME}.exe"
+    ${OrIf} ${FileExists} "$EnvDockUninstallDirectory\${MAINBINARYNAME}.exe"
       ; User cancelled wix uninstaller? return to select un/reinstall page
       ${If} $WixMode = 1
       ${AndIf} $0 = 1602
@@ -400,7 +428,6 @@ Function PageLeaveReinstall
       MessageBox MB_ICONEXCLAMATION "$(unableToUninstall)"
       Abort
     ${EndIf}
-  reinst_done:
 FunctionEnd
 
 ; 5. Choose install directory page
@@ -484,6 +511,7 @@ FunctionEnd
 !include "${ENVDOCK_INSTALLER_DIR}\messages.nsh"
 !include "${ENVDOCK_INSTALLER_DIR}\cleanup.nsh"
 !include "${ENVDOCK_INSTALLER_DIR}\options.nsh"
+!include "${ENVDOCK_INSTALLER_DIR}\dependencies.nsh"
 !insertmacro EnvDockOptionParser "un."
 
 Function .onInit
@@ -537,6 +565,7 @@ FunctionEnd
 
 
 Section EarlyChecks
+  Call EnvDockCheckInstalledVersion
   ; Abort silent installer if downgrades is disabled
   !if "${ALLOWDOWNGRADES}" == "false"
   ${If} ${Silent}
@@ -556,94 +585,14 @@ Section EarlyChecks
 SectionEnd
 
 Section WebView2
-  ; Check if Webview2 is already installed and skip this section
-  ${If} ${RunningX64}
-    ReadRegStr $4 HKLM "SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate\Clients\${WEBVIEW2APPGUID}" "pv"
-  ${Else}
-    ReadRegStr $4 HKLM "SOFTWARE\Microsoft\EdgeUpdate\Clients\${WEBVIEW2APPGUID}" "pv"
-  ${EndIf}
-  ${If} $4 == ""
-    ReadRegStr $4 HKCU "SOFTWARE\Microsoft\EdgeUpdate\Clients\${WEBVIEW2APPGUID}" "pv"
-  ${EndIf}
-
-  ${If} $4 == ""
-    ; Webview2 installation
-    ;
-    ; Skip if updating
-    ${If} $UpdateMode <> 1
-      !if "${INSTALLWEBVIEW2MODE}" == "downloadBootstrapper"
-        Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
-        DetailPrint "$(webview2Downloading)"
-        NSISdl::download "https://go.microsoft.com/fwlink/p/?LinkId=2124703" "$TEMP\MicrosoftEdgeWebview2Setup.exe"
-        Pop $0
-        ${If} $0 == "success"
-          DetailPrint "$(webview2DownloadSuccess)"
-        ${Else}
-          DetailPrint "$(webview2DownloadError)"
-          Abort "$(webview2AbortError)"
-        ${EndIf}
-        StrCpy $6 "$TEMP\MicrosoftEdgeWebview2Setup.exe"
-        Goto install_webview2
-      !endif
-
-      !if "${INSTALLWEBVIEW2MODE}" == "embedBootstrapper"
-        Delete "$TEMP\MicrosoftEdgeWebview2Setup.exe"
-        File "/oname=$TEMP\MicrosoftEdgeWebview2Setup.exe" "${WEBVIEW2BOOTSTRAPPERPATH}"
-        DetailPrint "$(installingWebview2)"
-        StrCpy $6 "$TEMP\MicrosoftEdgeWebview2Setup.exe"
-        Goto install_webview2
-      !endif
-
-      !if "${INSTALLWEBVIEW2MODE}" == "offlineInstaller"
-        Delete "$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe"
-        File "/oname=$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe" "${WEBVIEW2INSTALLERPATH}"
-        DetailPrint "$(installingWebview2)"
-        StrCpy $6 "$TEMP\MicrosoftEdgeWebView2RuntimeInstaller.exe"
-        Goto install_webview2
-      !endif
-
-      Goto webview2_done
-
-      install_webview2:
-        DetailPrint "$(installingWebview2)"
-        ; $6 holds the path to the webview2 installer
-        ExecWait "$6 ${WEBVIEW2INSTALLERARGS} /install" $1
-        ${If} $1 = 0
-          DetailPrint "$(webview2InstallSuccess)"
-        ${Else}
-          DetailPrint "$(webview2InstallError)"
-          Abort "$(webview2AbortError)"
-        ${EndIf}
-      webview2_done:
-    ${EndIf}
-  ${Else}
-    !if "${MINIMUMWEBVIEW2VERSION}" != ""
-      ${VersionCompare} "${MINIMUMWEBVIEW2VERSION}" "$4" $R0
-      ${If} $R0 = 1
-        update_webview:
-          DetailPrint "$(installingWebview2)"
-          ${If} ${RunningX64}
-            ReadRegStr $R1 HKLM "SOFTWARE\WOW6432Node\Microsoft\EdgeUpdate" "path"
-          ${Else}
-            ReadRegStr $R1 HKLM "SOFTWARE\Microsoft\EdgeUpdate" "path"
-          ${EndIf}
-          ${If} $R1 == ""
-            ReadRegStr $R1 HKCU "SOFTWARE\Microsoft\EdgeUpdate" "path"
-          ${EndIf}
-          ${If} $R1 != ""
-            ; Chromium updater docs: https://source.chromium.org/chromium/chromium/src/+/main:docs/updater/user_manual.md
-            ; Modified from "HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\Microsoft EdgeWebView\ModifyPath"
-            ExecWait `"$R1" /install appguid=${WEBVIEW2APPGUID}&needsadmin=true` $1
-            ${If} $1 = 0
-              DetailPrint "$(webview2InstallSuccess)"
-            ${Else}
-              MessageBox MB_ICONEXCLAMATION|MB_ABORTRETRYIGNORE "$(webview2InstallError)" IDIGNORE ignore IDRETRY update_webview
-              Quit
-              ignore:
-            ${EndIf}
-          ${EndIf}
-      ${EndIf}
-    !endif
+  ; Always check, including /UPDATE. No old application or payload is touched
+  ; until the helper confirms a usable runtime.
+  Call EnvDockEnsureDependencies
+  ${If} $EnvDockPendingUninstall = 1
+    StrCpy $R0 $EnvDockPreviousVersionComparison
+    StrCpy $R6 $EnvDockPreviousWixKey
+    Call EnvDockUninstallPrevious
+    StrCpy $EnvDockPendingUninstall 0
   ${EndIf}
 SectionEnd
 

@@ -14,6 +14,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw '卸载参数解析测试失败。' }
     & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\test-uninstall-integration.ps1"
     if ($LASTEXITCODE -ne 0) { throw '隔离卸载集成测试失败。' }
+    & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\test-ensure-webview2.ps1"
+    if ($LASTEXITCODE -ne 0) { throw '依赖自动准备测试失败。' }
+    & powershell.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\test-dependency-installer.ps1"
+    if ($LASTEXITCODE -ne 0) { throw '安装器依赖链路测试失败。' }
     & npm.cmd run build
     if ($LASTEXITCODE -ne 0) { throw '前端构建失败。' }
     & cargo.exe test --manifest-path src-tauri/Cargo.toml
