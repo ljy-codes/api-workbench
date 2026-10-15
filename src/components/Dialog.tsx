@@ -8,7 +8,7 @@ export function Dialog({ title, children, onClose, wide = false }: { title: stri
     dialog.showModal();
     return () => { dialog.close(); };
   }, []);
-  return <dialog ref={ref} className={wide ? 'dialog wide' : 'dialog'} aria-label={title} onCancel={e => { e.preventDefault(); onClose(); }}>
+  return <dialog ref={ref} className={wide ? 'dialog wide' : 'dialog'} aria-label={title} onCancel={e => { e.preventDefault(); e.stopPropagation(); onClose(); }}>
     <header className="dialog-header"><h2>{title}</h2><button className="icon-button" aria-label="关闭对话框" onClick={onClose}><X size={18} /></button></header>
     {children}
   </dialog>;

@@ -171,7 +171,7 @@ async fn read_project_file(app: tauri::AppHandle) -> Result<Option<String>, Stri
             .dialog()
             .file()
             .set_title("导入本地项目")
-            .add_filter("API Workbench 项目", &["apiworkbench", "json"])
+            .add_filter("接口配置文件", &["json", "yaml", "yml", "yaak", "apiworkbench"])
             .blocking_pick_file()
         else {
             return Ok(None);
@@ -196,8 +196,8 @@ async fn write_project_file(
             .dialog()
             .file()
             .set_title("导出本地项目")
-            .add_filter("API Workbench 项目", &["apiworkbench"])
-            .set_file_name("project.apiworkbench")
+            .add_filter("JSON 文件", &["json"])
+            .set_file_name("envdock-export.json")
             .blocking_save_file()
         else {
             return Ok(None);

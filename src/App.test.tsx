@@ -2,7 +2,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
 import App from './App';
 
-vi.mock('@uiw/react-codemirror', () => ({ default: ({ value, onChange }: { value: string; onChange?: (value: string) => void }) => <textarea aria-label="代码编辑器" value={value} onChange={e => onChange?.(e.target.value)} /> }));
+vi.mock('./components/CodeEditor', () => ({ default: ({ value, onChange }: { value: string; onChange?: (value: string) => void }) => <textarea aria-label="代码编辑器" value={value} onChange={e => onChange?.(e.target.value)} /> }));
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };

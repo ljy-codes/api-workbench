@@ -4,6 +4,7 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import App from './App';
 import type { Workbench, Execution } from './hooks/useWorkbench';
 import { demoWorkspace } from './lib/workspace';
+import { DEFAULT_PREFERENCES, updatePreferences } from './lib/preferences';
 
 const state = vi.hoisted(() => ({ model: {} as Workbench }));
 vi.mock('./hooks/useWorkbench', () => ({ useWorkbench: () => state.model }));
@@ -20,6 +21,8 @@ beforeAll(() => {
   HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };
 });
 beforeEach(() => {
+  localStorage.clear();
+  updatePreferences(DEFAULT_PREFERENCES);
   const workspace = demoWorkspace();
   const execution: Execution = { id: 'latest', requestId: 'demo-list', requestName: '列表', environment: '开发环境', running: false,
     response: { executionId: 'latest', status: 200, statusText: 'OK', durationMs: 1, sizeBytes: 2, body: '{}', headers: [], truncated: false, environmentName: '开发环境', url: 'https://example.test' } };
@@ -36,6 +39,28 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('颜色、快捷键和环境 UI 边界', () => {
+  it('底部显示作者，设置中可切换主题和布局', async () => {
+    render(<App />);
+    expect(screen.getByText('著作:lxs').closest('footer')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '设置' }));
+    const dialog = await screen.findByRole('dialog', { name: '设置' });
+    fireEvent.click(within(dialog).getByRole('button', { name: '浅色' }));
+    expect(document.documentElement.dataset.theme).toBe('light');
+    fireEvent.click(within(dialog).getByRole('button', { name: '布局' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: '左右分屏' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: '关闭对话框' }));
+    expect(screen.getByRole('separator', { name: '请求面板宽度' })).toBeTruthy();
+  });
+  it('侧栏可收起和恢复，切换分屏保留编辑器输入', () => {
+    render(<App />);
+    fireEvent.change(screen.getByLabelText('编辑器局部草稿'), { target: { value: '保留编辑' } });
+    fireEvent.click(screen.getByRole('button', { name: '收起侧栏' }));
+    expect(screen.queryByRole('separator', { name: '侧栏宽度' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '展开侧栏' }));
+    expect(screen.getByRole('separator', { name: '侧栏宽度' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: '左右分屏' }));
+    expect((screen.getByLabelText('编辑器局部草稿') as HTMLInputElement).value).toBe('保留编辑');
+  });
   it('项目环境使用自定义组合框且生产标识不依赖颜色', () => {
     render(<App />);
     const project = screen.getByRole('combobox', { name: '当前项目' });
@@ -91,12 +116,15 @@ describe('颜色、快捷键和环境 UI 边界', () => {
   it('相同请求和 execution id 切换环境重置编辑器及响应局部状态', () => {
     const { rerender } = render(<App />);
     fireEvent.change(screen.getByLabelText('编辑器局部草稿'), { target: { value: '旧环境临时输入' } });
+    fireEvent.click(screen.getByRole('button', { name: '查找响应正文' }));
     fireEvent.change(screen.getByLabelText('搜索响应正文'), { target: { value: 'secret' } });
     fireEvent.change(screen.getByLabelText('响应显示格式'), { target: { value: 'text' } });
     fireEvent.click(screen.getByRole('tab', { name: /Headers/ }));
     state.model = { ...state.model, environment: state.model.workspace.environments[1] };
     rerender(<App />);
     expect((screen.getByLabelText('编辑器局部草稿') as HTMLInputElement).value).toBe('');
+    expect(screen.queryByLabelText('搜索响应正文')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '查找响应正文' }));
     expect((screen.getByLabelText('搜索响应正文') as HTMLInputElement).value).toBe('');
     expect((screen.getByLabelText('响应显示格式') as HTMLSelectElement).value).toBe('json');
   });

@@ -4,6 +4,7 @@ import type { Confirmation } from '../components/Dialog';
 import { api, desktop } from '../lib/ipc';
 import { demoWorkspace, emptyWorkspace, errorMessage, responseForExecution, uid } from '../lib/workspace';
 import { cleanRequestBodies, executionKey, resolveRequest, updateEnvironmentRequest } from '../lib/environment';
+import type { ImportBundle, TransferSelection } from '../lib/transfer';
 
 export type Execution = { id: string; requestId: string; environment: string; requestName: string; running: boolean; response?: ResponseData; error?: string; cancelRequested?: boolean };
 export function useWorkbench() {
@@ -228,6 +229,24 @@ export function useWorkbench() {
     const path = await api.writeProjectFile(exportProject(wsRef.current, project.id));
     if (path) setNotice(`项目已导出：${path}`);
   }, true);
+  const readTransferFile = async () => {
+    let text: string | null = null;
+    await runLocalAction(async () => { text = await api.readProjectFile(); }, true);
+    return text;
+  };
+  const importSelected = (bundle: ImportBundle, selection: TransferSelection) => runLocalAction(async () => {
+    const { importSelection } = await import('../lib/transfer');
+    applyImport(importSelection(wsRef.current, bundle, selection));
+  });
+  const writeSelected = async (selection: TransferSelection): Promise<boolean | null> => {
+    let written = false;
+    const success = await runLocalAction(async () => {
+      const { exportSelection } = await import('../lib/transfer');
+      const path = await api.writeProjectFile(exportSelection(wsRef.current, selection));
+      if (path) { written = true; setNotice(`JSON 已导出：${path}`); }
+    }, true);
+    return success ? (written ? true : null) : false;
+  };
   const pickFile = async () => {
     let path: string | null = null;
     await runLocalAction(async () => { path = await api.pickFile(); }, true);
@@ -265,7 +284,7 @@ export function useWorkbench() {
   return {
     workspace, project, environment, request, selectedId, loading, busy, dirty, notice, setNotice,
     confirmation, setConfirmation, confirm, mutate, updateRequest, save, execute, cancel, preview, load, clearResponse, cleanData,
-    openTabs, closeTab, copyCurl: () => execute(false, true), importProjectText, importCurlText, readProject, writeProject, pickFile, backup,
+    openTabs, closeTab, copyCurl: () => execute(false, true), importProjectText, importCurlText, readProject, writeProject, readTransferFile, importSelected, writeSelected, pickFile, backup,
     hasRunning: Object.values(executions).some(execution => execution.running),
     execution: selectedKey ? executions[selectedKey] : undefined,
     temporary: selectedKey ? temporary[selectedKey] ?? [] : [],

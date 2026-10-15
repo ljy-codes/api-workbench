@@ -6,7 +6,7 @@ import { demoWorkspace } from './lib/workspace';
 
 vi.mock('./lib/ipc', () => ({ desktop: true, api: { load: vi.fn(), save: vi.fn(), preview: vi.fn(), send: vi.fn(), cancel: vi.fn(), loadResponse: vi.fn(), saveResponse: vi.fn(), clearResponse: vi.fn(), clearResponses: vi.fn(), compactStorage: vi.fn() } }));
 vi.mock('@tauri-apps/api/window', () => ({ getCurrentWindow: () => ({ onCloseRequested: async () => () => {}, destroy: vi.fn() }) }));
-vi.mock('@uiw/react-codemirror', () => ({ default: ({ value, onChange }: { value: string; onChange?: (value: string) => void }) => <textarea aria-label="代码编辑器" value={value} onChange={e => onChange?.(e.target.value)} /> }));
+vi.mock('./components/CodeEditor', () => ({ default: ({ value, onChange }: { value: string; onChange?: (value: string) => void }) => <textarea aria-label="代码编辑器" value={value} onChange={e => onChange?.(e.target.value)} /> }));
 beforeAll(() => {
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', ''); };
   HTMLDialogElement.prototype.close = function () { this.removeAttribute('open'); };

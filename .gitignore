@@ -21,3 +21,7 @@ ApiWorkbenchData/
 *.sqlite3
 backups/
 src-tauri/installer/plugins/
+
+# Local-only verification and maintenance records may contain business data.
+/docs/test.md
+/docs/cleanup-2026-10-08.md

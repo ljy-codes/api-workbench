@@ -18,6 +18,7 @@ try {
     Copy-Item -LiteralPath $bundle -Destination (Join-Path $output $name)
     Copy-Item -LiteralPath (Join-Path $root 'README.md') -Destination (Join-Path $output '使用说明.md')
     Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination (Join-Path $output 'LICENSE.txt')
+    Copy-Item -LiteralPath (Join-Path $root 'public\third-party-notices.txt') -Destination (Join-Path $output '第三方许可-YAML.txt')
     Copy-Item -LiteralPath (Join-Path $root 'scripts\migrate-local-data.ps1') -Destination $output
     Copy-Item -LiteralPath (Join-Path $root 'src-tauri\installer\TAURI-LICENSE-MIT') -Destination (Join-Path $output '第三方许可-Tauri.txt')
     $hash = (Get-FileHash -LiteralPath (Join-Path $output $name) -Algorithm SHA256).Hash

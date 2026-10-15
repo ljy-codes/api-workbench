@@ -6,13 +6,16 @@ use std::{
 };
 const LIMIT: usize = 10 * 1024 * 1024;
 
-fn validate_path(path: &Path) -> Result<(), String> {
+fn validate_path(path: &Path, importing: bool) -> Result<(), String> {
     let extension = path
         .extension()
         .and_then(|value| value.to_str())
         .unwrap_or("");
-    if !extension.eq_ignore_ascii_case("json") && !extension.eq_ignore_ascii_case("apiworkbench") {
-        return Err("项目文件扩展名必须为 .json 或 .apiworkbench".into());
+    let supported = extension.eq_ignore_ascii_case("json")
+        || extension.eq_ignore_ascii_case("apiworkbench")
+        || (importing && ["yaml", "yml", "yaak"].iter().any(|value| extension.eq_ignore_ascii_case(value)));
+    if !supported {
+        return Err(if importing { "导入文件扩展名必须为 .json、.yaml、.yml、.yaak 或 .apiworkbench".into() } else { "导出文件扩展名必须为 .json 或 .apiworkbench".into() });
     }
     match fs::symlink_metadata(path) {
         Ok(metadata) if !metadata.is_file() || metadata.file_type().is_symlink() => {
@@ -25,7 +28,7 @@ fn validate_path(path: &Path) -> Result<(), String> {
 }
 
 pub fn read_project(path: &Path) -> Result<String, String> {
-    validate_path(path)?;
+    validate_path(path, true)?;
     let file = File::open(path).map_err(|_| "无法打开项目文件")?;
     let mut bytes = Vec::new();
     file.take(LIMIT as u64 + 1)
@@ -42,7 +45,7 @@ pub fn read_project(path: &Path) -> Result<String, String> {
 }
 
 pub fn write_project(path: &Path, content: &str) -> Result<(), String> {
-    validate_path(path)?;
+    validate_path(path, false)?;
     if content.len() > LIMIT {
         return Err("项目文件超过 10 MiB 限制".into());
     }
@@ -144,5 +147,15 @@ mod tests {
         fs::create_dir(&dir).unwrap();
         assert!(read_project(&dir).is_err());
         assert!(write_project(&dir, "{}").is_err());
+    }
+    #[test]
+    fn yaml_and_yaak_are_read_only_import_extensions() {
+        let temp = Temp::new();
+        for extension in ["yaml", "yml", "yaak"] {
+            let path = temp.0.join(format!("export.{extension}"));
+            fs::write(&path, "schema: yaak.http/v1\n").unwrap();
+            assert!(read_project(&path).is_ok());
+            assert!(write_project(&path, "{}").is_err());
+        }
     }
 }

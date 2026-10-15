@@ -97,7 +97,7 @@ describe('0.2 前端联接', () => {
     fireEvent.click(screen.getByRole('button', { name: '粘贴项目 JSON' }));
     const dialog = screen.getByRole('dialog', { name: '粘贴项目 JSON' });
     fireEvent.change(within(dialog).getByLabelText('项目 JSON'), { target: { value: 'invalid' } });
-    fireEvent.click(within(dialog).getByRole('button', { name: '导入为草稿' }));
+    fireEvent.click(within(dialog).getByRole('button', { name: '预览内容' }));
     expect(await within(dialog).findByRole('alert')).toBeTruthy();
     expect((within(dialog).getByLabelText('项目 JSON') as HTMLTextAreaElement).value).toBe('invalid');
     expect(api.save).not.toHaveBeenCalled();
@@ -133,6 +133,7 @@ describe('0.2 前端联接', () => {
   });
   it('原生预览显示变量来源但不显示秘密解析值', async () => {
     render(<App />);
+    fireEvent.click(await screen.findByLabelText('更多请求操作'));
     fireEvent.click(await screen.findByRole('button', { name: '脱敏预览' }));
     await waitFor(() => expect(api.preview).toHaveBeenCalledTimes(1));
     await act(async () => {});

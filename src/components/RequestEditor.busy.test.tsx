@@ -24,6 +24,7 @@ function Harness() {
   const model = useWorkbench();
   return <>
     <fieldset disabled={model.busy}><RequestEditor model={model} /></fieldset>
+    <button onClick={() => void model.save()}>保存工作区</button>
     <output data-testid="draft">{model.request?.body}</output>
     <output data-testid="dirty">{String(model.dirty)}</output>
     <output data-testid="revision">{model.workspace.revision}</output>
@@ -135,6 +136,7 @@ describe('真实正文编辑器的异步锁定', () => {
     const pending = deferred<Preview>();
     vi.mocked(api.preview).mockReturnValueOnce(pending.promise);
     const { view, content } = await openBody();
+    fireEvent.click(screen.getByLabelText('更多请求操作'));
     fireEvent.click(screen.getByRole('button', { name: '脱敏预览' }));
     expect(api.preview).toHaveBeenCalledTimes(1);
     pressEnter(view);
