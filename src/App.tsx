@@ -10,9 +10,11 @@ import { RequestEditor } from './components/RequestEditor';
 import { ResponsePanel } from './components/ResponsePanel';
 import { EnvironmentMatrix } from './components/EnvironmentMatrix';
 import { EntityManager } from './components/EntityManager';
+import { EntityEditor, type EntityEditTarget } from './components/EntityEditor';
 import { ColorSelect } from './components/ColorSelect';
 import { ENVIRONMENT_COLOR, PROJECT_COLOR } from './components/ColorPicker';
 import { VariablesEditor } from './components/VariablesEditor';
+import { Dashboard } from './components/Dashboard';
 
 import { ResizeHandle } from './components/ResizeHandle';
 import { RequestTabs } from './components/RequestTabs';
@@ -20,11 +22,12 @@ import { usePreferences } from './hooks/usePreferences';
 
 const SettingsPanel = lazy(() => import('./components/SettingsPanel'));
 
-type Page = 'requests' | 'environments' | 'variables' | 'manage';
+type Page = 'home' | 'requests' | 'environments' | 'variables' | 'manage';
 export default function App() {
   const model = useWorkbench();
   const [page, setPage] = useState<Page>('requests');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [creation, setCreation] = useState<EntityEditTarget | null>(null);
   const { preferences, updatePreferences } = usePreferences();
   const { sidebarCollapsed, sidebarWidth, editorHeight, editorWidth, layout } = preferences;
   const sideBySide = layout === 'side-by-side';
@@ -56,8 +59,9 @@ export default function App() {
     { page: 'manage' as const, label: '工作区管理', Icon: Settings2 },
   ];
   const hasProjects = model.workspace.projects.length > 0;
+  const openRequest = (id: string) => { model.selectRequest(id); setPage('requests'); };
   return <div className="app-shell">
-    <nav className="rail" aria-label="主导航"><div className="brand-mark" title="接口工作台"><img src="/envdock.svg" alt="EnvDock" width={34} height={34} /></div><div className="rail-nav">{nav.map(({ page: target, label, Icon }) => <button className={`rail-button ${page === target ? 'active' : ''}`} aria-label={label} title={label} aria-current={page === target ? 'page' : undefined} onClick={() => setPage(target)} key={target}><Icon size={20} /></button>)}</div><div className="rail-settings"><button className="rail-button" aria-label="设置" title="设置" onClick={() => setSettingsOpen(true)}><Settings size={19} /></button><span title="原生执行 · 本地数据"><ShieldCheck size={16} /></span></div></nav>
+    <nav className="rail" aria-label="主导航"><button className="brand-mark" aria-label="返回主页" title="主页 · 项目仪表盘" aria-current={page === 'home' ? 'page' : undefined} onClick={() => setPage('home')}><img src="/envdock.svg" alt="EnvDock" width={34} height={34} /></button><div className="rail-nav">{nav.map(({ page: target, label, Icon }) => <button className={`rail-button ${page === target ? 'active' : ''}`} aria-label={label} title={label} aria-current={page === target ? 'page' : undefined} onClick={() => setPage(target)} key={target}><Icon size={20} /></button>)}</div><div className="rail-settings"><button className="rail-button" aria-label="设置" title="设置" onClick={() => setSettingsOpen(true)}><Settings size={19} /></button><span title="原生执行 · 本地数据"><ShieldCheck size={16} /></span></div></nav>
     <div className="app-main">
       <header className="topbar">
         <div className="brand-title">EnvDock<span className="version-label">{version}</span></div><span className="topbar-divider" />
@@ -67,14 +71,15 @@ export default function App() {
       </header>
       {!desktop && <div className="preview-banner"><FlaskConical size={14} /><span>仅内存预览，桌面版才可保存和发送</span><span className="preview-banner-detail">刷新后数据清空 · 不连接网络</span></div>}
       <div className="workspace-layout" style={{ '--sidebar-width': `${sidebarWidth}px` } as CSSProperties}>
-        <div className="sidebar-container" hidden={sidebarCollapsed}><Sidebar workspace={model.workspace} selectedId={model.selectedId} onSelect={id => { model.selectRequest(id); setPage('requests'); }} onManage={() => setPage('manage')} disabled={model.busy || model.loading} /></div>
+        <div className="sidebar-container" hidden={sidebarCollapsed}><Sidebar workspace={model.workspace} selectedId={model.selectedId} onSelect={openRequest} onManage={() => setPage('manage')} onCreate={setCreation} disabled={model.busy || model.loading} /></div>
         {!sidebarCollapsed && <ResizeHandle label="侧栏宽度" orientation="vertical" value={sidebarWidth} min={200} max={420} onChange={value => updatePreferences({ sidebarWidth: value })} disabled={model.busy} />}
         <main className="main-content" aria-busy={model.busy || model.loading}>
           {model.loading ? <div className="empty-state"><Database size={32} /><h2>正在加载本地工作区</h2></div> : <fieldset className={`workbench-content ${page === 'requests' ? 'request-workspace' : ''}`} disabled={model.busy}>
+            {page === 'home' && <Dashboard model={model} onNavigate={setPage} onOpenRequest={openRequest} onCreate={setCreation} />}
             {page === 'requests' && <RequestTabs model={model} />}
-            {page === 'requests' && (model.request ? <div className={`request-split ${sideBySide ? "split-columns" : "split-rows"}`} style={{ "--editor-height": `${editorHeight}px`, "--editor-width": `${editorWidth}px` } as CSSProperties}><div className="request-pane"><RequestEditor key={JSON.stringify([model.request.id, model.environment?.id])} model={model} /></div><ResizeHandle label={sideBySide ? "请求面板宽度" : "请求面板高度"} orientation={sideBySide ? "vertical" : "horizontal"} value={sideBySide ? editorWidth : editorHeight} min={sideBySide ? 300 : 160} max={sideBySide ? 900 : 720} onChange={value => updatePreferences(sideBySide ? { editorWidth: value } : { editorHeight: value })} disabled={model.busy} /><ResponsePanel key={JSON.stringify([model.request.id, model.environment?.id, model.execution?.id])} execution={model.execution} onClear={() => void model.clearResponse()} /></div> : <div className="welcome-panel"><div className="eyebrow">YOUR LOCAL API WORKSPACE</div><div className="welcome-symbol"><Command size={37} /></div><h1>让接口调试，<br /><span>更专注一些。</span></h1><p>项目、环境与服务，一处有序管理。<br />从左侧选择接口，或创建你的第一个工作区。</p><div className="welcome-actions"><button className="primary" onClick={() => setPage('manage')}>{hasProjects ? '管理接口集合' : '创建第一个项目'}<ChevronRight size={15} /></button>{!desktop && !hasProjects && <button onClick={model.loadDemo}>载入内存示例</button>}</div><div className="getting-started"><div><span>01</span><strong>建立项目与服务</strong><small>让接口按业务归档</small></div><div><span>02</span><strong>配置环境地址</strong><small>开发与生产清晰区分</small></div><div><span>03</span><strong>编辑并发送请求</strong><small>在桌面端完成原生调试</small></div></div></div>)}
+            {page === 'requests' && (model.request ? <div className={`request-split ${sideBySide ? "split-columns" : "split-rows"}`} style={{ "--editor-height": `${editorHeight}px`, "--editor-width": `${editorWidth}px` } as CSSProperties}><div className="request-pane"><RequestEditor key={JSON.stringify([model.request.id, model.environment?.id])} model={model} onConfigureAddresses={() => setPage('environments')} /></div><ResizeHandle label={sideBySide ? "请求面板宽度" : "请求面板高度"} orientation={sideBySide ? "vertical" : "horizontal"} value={sideBySide ? editorWidth : editorHeight} min={sideBySide ? 300 : 160} max={sideBySide ? 900 : 720} onChange={value => updatePreferences(sideBySide ? { editorWidth: value } : { editorHeight: value })} disabled={model.busy} /><ResponsePanel key={JSON.stringify([model.request.id, model.environment?.id, model.execution?.id])} execution={model.execution} onClear={() => void model.clearResponse()} /></div> : <div className="welcome-panel"><div className="eyebrow">YOUR LOCAL API WORKSPACE</div><div className="welcome-symbol"><Command size={37} /></div><h1>让接口调试，<br /><span>更专注一些。</span></h1><p>项目、环境与服务，一处有序管理。<br />从左侧选择接口，或创建你的第一个工作区。</p><div className="welcome-actions"><button className="primary" onClick={() => setPage('manage')}>{hasProjects ? '管理接口集合' : '创建第一个项目'}<ChevronRight size={15} /></button>{!desktop && !hasProjects && <button onClick={model.loadDemo}>载入内存示例</button>}</div><div className="getting-started"><div><span>01</span><strong>建立项目与服务</strong><small>让接口按业务归档</small></div><div><span>02</span><strong>配置环境地址</strong><small>开发与生产清晰区分</small></div><div><span>03</span><strong>编辑并发送请求</strong><small>在桌面端完成原生调试</small></div></div></div>)}
             {page === 'environments' && <EnvironmentMatrix model={model} onManage={() => setPage('manage')} />}
-            {page === 'variables' && <div className="page-panel"><div className="page-heading"><div><div className="eyebrow">VARIABLES</div><h1>配置一次，在合适的范围生效</h1><p>项目 / 服务 / 环境 / 绑定 / 接口 / 本次临时。服务与接口层跟随左侧当前选中接口。</p></div></div><VariablesEditor model={model} /></div>}
+            {page === 'variables' && <div className="page-panel"><div className="page-heading"><div><div className="eyebrow">VARIABLES</div><h1>配置一次，在合适的范围生效</h1><p>项目 / 服务 / 环境 / 绑定 / 接口 / 本次临时。服务与接口层跟随左侧当前选中接口。</p></div></div><VariablesEditor model={model} onConfigureAddresses={() => setPage('environments')} /></div>}
             {page === 'manage' && <EntityManager model={model} />}
           </fieldset>}
         </main>
@@ -83,6 +88,7 @@ export default function App() {
     </div>
     {model.notice && <div className="toast" role="status"><span>{model.notice}</span><button className="icon-button" aria-label="关闭通知" onClick={() => model.setNotice('')}><X size={15} /></button>{desktop && !hasProjects && <button onClick={() => void model.load()}>重新加载</button>}</div>}
     {settingsOpen && <Suspense fallback={null}><SettingsPanel model={model} preferences={preferences} updatePreferences={updatePreferences} onClose={() => setSettingsOpen(false)} /></Suspense>}
+    {creation && <EntityEditor model={model} target={creation} onClose={() => setCreation(null)} />}
     {model.confirmation && <ConfirmDialog value={model.confirmation} close={() => model.setConfirmation(null)} />}
   </div>;
 }

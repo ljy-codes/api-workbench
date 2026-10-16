@@ -20,8 +20,8 @@ export const editorTheme = [
     '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'var(--code-active-line)' },
     '.cm-foldPlaceholder': { backgroundColor: 'var(--panel-raised)', color: 'var(--muted)', borderColor: 'var(--border)' },
     '&.cm-focused .cm-cursor': { borderLeftColor: 'var(--accent)' },
-    '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: '#536a9155' },
-    '.cm-searchMatch': { backgroundColor: '#e5b567', color: '#171b25', borderRadius: '2px' },
+    '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: 'var(--code-selection)' },
+    '.cm-searchMatch': { backgroundColor: 'var(--code-search-bg)', color: 'var(--code-search-text)', borderRadius: '2px' },
   }, { dark: true }),
   syntaxHighlighting(jsonHighlightStyle),
 ];

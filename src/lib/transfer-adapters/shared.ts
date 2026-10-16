@@ -1,6 +1,7 @@
 import type { AuthConfig, Environment, Pair, RequestDefinition, Variable, Workspace } from '../../types';
 import { emptyWorkspace, newRequest, uid } from '../workspace';
 import { exportProject } from '../exchange';
+import { unifyServiceAddresses } from '../service-addresses';
 
 export type Obj = Record<string, unknown>;
 export const MAX_BYTES = 10 * 1024 * 1024;
@@ -171,7 +172,7 @@ export class Builder {
       for (const key of COLLECTIONS) (clean[key] as unknown[]).push(...single[key]);
     }
     clean.activeProjectId = clean.projects[0]?.id ?? null;
-    return clean;
+    return unifyServiceAddresses(clean);
   }
   private resolveBase(value: string, variables: Map<string, string>): string {
     let current = value;

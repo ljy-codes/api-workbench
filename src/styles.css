@@ -1,10 +1,6 @@
 :root {
   font-family: "Segoe UI", "Microsoft YaHei UI", "PingFang SC", sans-serif;
-  color: #dedee9; background: #111218; font-size: 13px; font-synthesis: none;
-  --bg: #111218; --panel: #17181f; --panel-raised: #1d1e27; --border: #292b37;
-  --muted: #9294a8; --accent: #a596ff; --cyan: #65d7c5; --danger: #f18d97;
-  --code-bg: #151922; --code-text: #c7cedc; --code-gutter: #737f94; --code-active-line: #1d2431;
-  --code-key: #82aaff; --code-string: #e8b673; --code-number: #76d6d1; --code-literal: #c6a0f6; --code-punctuation: #9aa6bb;
+  color: var(--text); background: var(--bg); font-size: 13px; font-synthesis: none;
 }
 * { box-sizing: border-box; }
 body { margin: 0; min-width: 820px; }
@@ -13,7 +9,7 @@ button, input, select { color: inherit; }
 button { border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; background: #21222d; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 7px; transition: background .15s, border-color .15s; white-space: nowrap; }
 button:hover:not(:disabled) { background: #2a2b39; border-color: #474859; }
 button:disabled { cursor: not-allowed; opacity: .43; }
-button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 input, select, textarea { background: #15161e; border: 1px solid var(--border); border-radius: 5px; padding: 8px 10px; min-width: 0; }
 input::placeholder { color: #777b91; }
 select { color-scheme: dark; }
@@ -87,6 +83,13 @@ kbd { font: 10px "Segoe UI", sans-serif; border: 1px solid #3b3d4d; border-radiu
 .sidebar { width: 260px; flex-shrink: 0; border-right: 1px solid var(--border); background: #16171e; display: flex; flex-direction: column; }
 .sidebar-title { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px 6px; min-height: 38px; font-size: 12px; font-weight: 600; }
 .sidebar-title small { margin-left: 6px; background: #272835; color: #9d9fb4; border-radius: 4px; padding: 1px 5px; }
+.sidebar-actions { display: flex; align-items: center; gap: 2px; }
+.tree-context-menu { position: fixed; z-index: 100; width: 176px; max-width: calc(100vw - 16px); padding: 5px; border: 1px solid var(--border); border-radius: 7px; background: var(--panel); color: var(--text); box-shadow: var(--overlay-shadow); }
+.tree-context-menu > button { width: 100%; justify-content: flex-start; padding: 8px 10px; background: transparent; border-color: transparent; color: inherit; font-size: 12px; }
+.tree-context-menu > button:hover, .tree-context-menu > button:focus-visible { background: var(--button-hover); outline: 1px solid var(--focus-ring); outline-offset: -1px; }
+.entity-editor { margin: 0; padding: 0; border: 0; min-width: 0; }
+.request-tab-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; flex-shrink: 0; }
+.close-all-tabs { padding: 3px 7px; font-size: 11px; white-space: nowrap; }
 .search-field { margin: 0 10px 8px; border: 1px solid #2f303c; border-radius: 5px; padding: 0 8px; display: flex; align-items: center; gap: 6px; color: #8d90a2; background: #111219; }
 .search-field input { border: 0; background: transparent; width: 100%; font-size: 11px; padding: 6px 0; }
 .search-field kbd { padding: 0 4px; color: #696b80; }
@@ -245,6 +248,11 @@ kbd { font: 10px "Segoe UI", sans-serif; border: 1px solid #3b3d4d; border-radiu
 .scope-tabs small { color: #74788e; font: 10px Consolas, monospace; }
 .variable-row { display: grid; grid-template-columns: minmax(80px, 1fr) minmax(110px, 1.5fr) 67px 28px; gap: 10px; align-items: center; padding: 9px; border-bottom: 1px solid var(--border); }
 .variable-row > input { width: 100%; font-size: 11px; }
+.info-card.address-source { margin: 0 0 16px; padding: 14px 16px; background: var(--surface-subtle); border-color: var(--border); }
+.info-card.address-source > svg { color: var(--accent); }
+.info-card.address-source strong { color: var(--text-secondary); }
+.info-card.address-source p { color: var(--muted); margin-top: 5px; }
+.address-source .text-button { margin-top: 7px; padding-left: 0; }
 .secret-field { display: flex; border: 1px solid var(--border); border-radius: 5px; background: #15161e; min-width: 0; }
 .secret-field > input { border: 0; width: 100%; font-size: 11px; padding: 8px; }
 .resolved-variables { border: 1px solid var(--border); border-radius: 5px; margin-top: 20px; padding: 16px; }
@@ -283,7 +291,7 @@ kbd { font: 10px "Segoe UI", sans-serif; border: 1px solid #3b3d4d; border-radiu
 .request-workspace { display: flex; flex-direction: column; }
 .request-tabs { display: flex; align-items: center; flex-shrink: 0; min-height: 34px; border-bottom: 1px solid var(--border); background: #181923; padding: 0 8px; gap: 8px; }
 .request-tabs > [role=tablist] { display: flex; min-width: 0; overflow-x: auto; flex: 1; }
-.request-tabs > small { color: var(--muted); font-size: 10px; white-space: nowrap; }
+.request-tab-actions > small { color: var(--muted); font-size: 10px; white-space: nowrap; }
 .request-tabs > .hint { margin: 0; padding: 10px; }
 .request-tab { display: flex; align-items: center; border-right: 1px solid var(--border); flex-shrink: 0; }
 .request-tab.active { background: #2b263e; box-shadow: inset 0 -2px #a596ff; }
@@ -321,7 +329,7 @@ kbd { font: 10px "Segoe UI", sans-serif; border: 1px solid #3b3d4d; border-radiu
 .response-search > button { margin-left: auto; }
 .response-search > span { overflow-wrap: anywhere; }
 .form-fields textarea { color: inherit; resize: vertical; min-height: 140px; font: 12px/1.7 Consolas, monospace; }
-@media (max-width: 1200px) { .request-tabs > small { display: none; } }
+@media (max-width: 1200px) { .request-tab-actions > small { display: none; } }
 @media (max-width: 1100px) { .project-select .color-select-trigger { max-width: 140px; } .environment-select .color-select-trigger { max-width: 155px; } .response-metrics { gap: 8px; } .response-environment { max-width: 100px; } }
 
 /* Local preferences and compact settings. */

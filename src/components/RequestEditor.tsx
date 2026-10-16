@@ -10,7 +10,7 @@ import { FormEditor } from './FormEditor';
 
 const CodeEditor = lazy(() => import('./CodeEditor'));
 
-export function RequestEditor({ model }: { model: Workbench }) {
+export function RequestEditor({ model, onConfigureAddresses }: { model: Workbench; onConfigureAddresses?: () => void }) {
   const [tab, setTab] = useState(model.request?.bodyType !== 'none' ? 'body' : 'query');
   const [showPreview, setShowPreview] = useState(false);
   const menu = useRef<HTMLDetailsElement>(null);
@@ -34,7 +34,7 @@ export function RequestEditor({ model }: { model: Workbench }) {
   return <section className="request-editor" aria-label="请求编辑">
     {model.environment?.isProduction && <p className="warning-line">当前为生产环境；发送前需再次确认。取消请求不代表回滚。</p>}
     <div className="url-bar">
-      <select aria-label="请求方法" value={request.method} onChange={e => update({ method: e.target.value })}>{['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'].map(m => <option key={m}>{m}</option>)}</select>
+      <select className={`method-${request.method}`} aria-label="请求方法" value={request.method} onChange={e => update({ method: e.target.value })}>{['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'HEAD', 'OPTIONS'].map(m => <option key={m}>{m}</option>)}</select>
       <input aria-label="接口路径" spellCheck={false} value={request.path} title={binding?.enabled ? binding.baseUrl : '当前环境尚未启用地址绑定'} placeholder="/users/{{userId}}" onChange={e => update({ path: e.target.value })} />
       {execution?.running
         ? <button className="cancel-button" aria-label={execution.cancelRequested ? '取消中' : '取消请求'} title="取消请求" disabled={execution.cancelRequested} onClick={() => void model.cancel()}><Square size={15} /></button>
@@ -85,7 +85,7 @@ export function RequestEditor({ model }: { model: Workbench }) {
         : request.bodyType === 'form' || request.bodyType === 'multipart'
           ? <FormEditor key={request.id} value={request.form ?? []} multipart={request.bodyType === 'multipart'} onChange={form => update({ form })} pickFile={desktop ? model.pickFile : undefined} disabled={model.busy} />
           : <Suspense fallback={<div className="table-empty">正在加载正文编辑器…</div>}><CodeEditor value={request.body} isJson={request.bodyType === 'json'} disabled={!model.environment || model.busy} onChange={body => update({ body })} /></Suspense>)}
-      {tab === 'variables' && <VariablesEditor model={model} />}
+      {tab === 'variables' && <VariablesEditor model={model} onConfigureAddresses={onConfigureAddresses} />}
     </fieldset>
   </section>;
 }

@@ -4,6 +4,7 @@ import type { Confirmation } from '../components/Dialog';
 import { api, desktop } from '../lib/ipc';
 import { demoWorkspace, emptyWorkspace, errorMessage, responseForExecution, uid } from '../lib/workspace';
 import { cleanRequestBodies, executionKey, resolveRequest, updateEnvironmentRequest } from '../lib/environment';
+import { unifyServiceAddresses } from '../lib/service-addresses';
 import type { ImportBundle, TransferSelection } from '../lib/transfer';
 
 export type Execution = { id: string; requestId: string; environment: string; requestName: string; running: boolean; response?: ResponseData; error?: string; cancelRequested?: boolean };
@@ -42,9 +43,11 @@ export function useWorkbench() {
     if (dirtyRef.current) { setNotice('工作区有未保存修改，请先保存再重新加载；草稿已保留。'); return; }
     lock.current = true; setBusy(true); setLoading(true);
     try {
-      const w = await api.load();
+      const loaded = await api.load();
+      const w = unifyServiceAddresses(loaded);
       const first = w.requests.find(r => w.services.some(s => s.id === r.serviceId && s.projectId === w.activeProjectId))?.id ?? null;
-      acceptWorkspace(w, false); responseEpoch.current++;
+      acceptWorkspace(w, w !== loaded); responseEpoch.current++;
+      if (w !== loaded) setNotice('已将无引用的重复地址统一到环境矩阵；请保存全部修改，原有接口与变量引用保留。');
       putExecutions(() => ({}));
       setLoadVersion(version => version + 1);
       setSelectedId(first); setOpenTabs(first ? [first] : []);
@@ -193,6 +196,11 @@ export function useWorkbench() {
       setPreview(null);
     }
   });
+  const closeAllTabs = () => switchContext(() => {
+    const projectIds = new Set(projectRequests.map(r => r.id));
+    setOpenTabs(tabs => tabs.filter(id => !projectIds.has(id)));
+    setSelectedId(null);
+  });
   const runLocalAction = async (action: () => Promise<void>, nativeOnly = false) => {
     if (lock.current || confirmation) return false;
     if (nativeOnly && !desktop) { setNotice('此功能需要桌面模式；浏览器仅保留内存草稿。'); return false; }
@@ -201,7 +209,8 @@ export function useWorkbench() {
     catch (error) { setNotice(errorMessage(error)); return false; }
     finally { lock.current = false; setBusy(false); }
   };
-  const applyImport = (next: Workspace) => {
+  const applyImport = (imported: Workspace) => {
+    const next = unifyServiceAddresses(imported);
     const newRequest = next.requests.find(r => !wsRef.current.requests.some(old => old.id === r.id) && next.services.some(s => s.id === r.serviceId && s.projectId === next.activeProjectId));
     acceptWorkspace(next, true); setPreview(null);
     if (newRequest) { setSelectedId(newRequest.id); setOpenTabs(tabs => [...tabs, newRequest.id]); }
@@ -284,7 +293,7 @@ export function useWorkbench() {
   return {
     workspace, project, environment, request, selectedId, loading, busy, dirty, notice, setNotice,
     confirmation, setConfirmation, confirm, mutate, updateRequest, save, execute, cancel, preview, load, clearResponse, cleanData,
-    openTabs, closeTab, copyCurl: () => execute(false, true), importProjectText, importCurlText, readProject, writeProject, readTransferFile, importSelected, writeSelected, pickFile, backup,
+    openTabs, closeTab, closeAllTabs, copyCurl: () => execute(false, true), importProjectText, importCurlText, readProject, writeProject, readTransferFile, importSelected, writeSelected, pickFile, backup,
     hasRunning: Object.values(executions).some(execution => execution.running),
     execution: selectedKey ? executions[selectedKey] : undefined,
     temporary: selectedKey ? temporary[selectedKey] ?? [] : [],

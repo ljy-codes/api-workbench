@@ -20,6 +20,62 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe('IPC、快照与并发', () => {
+  it('关闭全部标签先保存一次，保留其他项目标签、草稿和临时变量', async () => {
+    const workspace = demoWorkspace();
+    workspace.projects.push({ id: 'other-project', name: '其他项目', activeEnvironmentId: null });
+    workspace.services.push({ id: 'other-service', name: '其他服务', projectId: 'other-project' });
+    workspace.requests.push({ ...workspace.requests[0], id: 'other-request', serviceId: 'other-service', folderId: null });
+    vi.mocked(api.load).mockResolvedValue(workspace);
+    const { result } = renderHook(useWorkbench);
+    await waitFor(() => expect(result.current.request).toBeTruthy());
+    await act(async () => result.current.selectProject('other-project'));
+    await act(async () => result.current.selectRequest('other-request'));
+    await act(async () => result.current.selectProject('demo-project'));
+    await act(async () => result.current.selectRequest('demo-create'));
+    await act(async () => result.current.selectRequest('demo-list'));
+    act(() => result.current.setTemporary([{ id: 'temp', key: 'page', value: '2', enabled: true }]));
+    act(() => result.current.updateRequest({ path: '/close-all-draft' }));
+    vi.mocked(api.save).mockClear();
+    await act(async () => result.current.closeAllTabs());
+    expect(api.save).toHaveBeenCalledTimes(1);
+    expect(result.current.openTabs).toEqual(['other-request']);
+    expect(result.current.selectedId).toBeNull();
+    expect(result.current.workspace.requests).toHaveLength(3);
+    await act(async () => result.current.selectRequest('demo-list'));
+    expect(result.current.request?.path).toBe('/close-all-draft');
+    expect(result.current.temporary[0].value).toBe('2');
+  });
+  it('批量关闭保存失败时保留全部标签及草稿', async () => {
+    const { result } = renderHook(useWorkbench);
+    await waitFor(() => expect(result.current.request).toBeTruthy());
+    await act(async () => result.current.selectRequest('demo-create'));
+    act(() => result.current.updateRequest({ body: '{"draft":true}' }));
+    vi.mocked(api.save).mockRejectedValueOnce(new Error('保存失败'));
+    await act(async () => result.current.closeAllTabs());
+    expect(result.current.openTabs).toEqual(['demo-list', 'demo-create']);
+    expect(result.current.selectedId).toBe('demo-create');
+    expect(result.current.request?.body).toBe('{"draft":true}');
+    expect(result.current.dirty).toBe(true);
+    expect(result.current.notice).toContain('自动保存失败');
+  });
+  it('批量关闭不取消进行中的请求，重新打开可收到原响应', async () => {
+    const pending = deferred<ResponseData>();
+    vi.mocked(api.send).mockReturnValue(pending.promise);
+    const { result } = renderHook(useWorkbench);
+    await waitFor(() => expect(result.current.request).toBeTruthy());
+    let sending!: Promise<void>;
+    act(() => { sending = result.current.execute(); });
+    await waitFor(() => expect(api.send).toHaveBeenCalledTimes(1));
+    const executionId = vi.mocked(api.send).mock.calls[0][0].executionId;
+    await act(async () => result.current.closeAllTabs());
+    expect(result.current.openTabs).toEqual([]);
+    expect(result.current.hasRunning).toBe(true);
+    expect(api.cancel).not.toHaveBeenCalled();
+    await act(async () => { pending.resolve(response(executionId)); await sending; });
+    await act(async () => result.current.selectRequest('demo-list'));
+    expect(result.current.execution?.response?.executionId).toBe(executionId);
+    expect(api.saveResponse).toHaveBeenCalledWith('demo-list', 'demo-dev', expect.objectContaining({ executionId }));
+  });
   it('关闭运行中的标签不取消请求，响应仍归属原接口并可重新打开', async () => {
     const pending = deferred<ResponseData>();
     vi.mocked(api.send).mockReturnValue(pending.promise);

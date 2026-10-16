@@ -18,6 +18,6 @@ export function RequestTabs({ model }: { model: Workbench }) {
       <button disabled={model.busy} className="tab-close" aria-label={`关闭标签 ${r.name}`} title="关闭标签不删除接口、草稿或响应" onClick={() => model.closeTab(r.id)}>×</button>
     </div>)}</div>
     {!requests.length && <span className="hint">从左侧打开接口</span>}
-    <small>关闭标签保留草稿与响应</small>
+    <div className="request-tab-actions"><small>关闭标签保留草稿与响应</small><button className="close-all-tabs" aria-label="关闭全部标签" title="关闭当前项目的全部标签，保留接口、草稿与响应" disabled={model.busy || model.loading || !requests.length} onClick={() => void model.closeAllTabs()}>关闭全部</button></div>
   </div>;
 }
