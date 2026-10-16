@@ -12,6 +12,10 @@
   --text-secondary: #b1bac8;
   --muted: #9ba6b7;
   --accent: #adb9cb;
+  --nav-requests: #91adca;
+  --nav-environments: #b1a2cd;
+  --nav-variables: #8db8ac;
+  --nav-manage: #c5ae89;
   --cyan: #7bdcba;
   --danger: #f08fa2;
   --surface-subtle: #191c23;
@@ -66,6 +70,10 @@
   --text-secondary: #535f71;
   --muted: #5b6779;
   --accent: #51627a;
+  --nav-requests: #4e6e90;
+  --nav-environments: #7b6598;
+  --nav-variables: #447c70;
+  --nav-manage: #876c43;
   --cyan: #08775a;
   --danger: #b63450;
   --surface-subtle: #f5f6f8;
@@ -214,6 +222,12 @@
 :root :is(.rail-button, .rail-bottom) { color: var(--muted); }
 :root .rail-button.active { color: var(--accent); background: var(--accent-soft); }
 :root .rail-button.active:before { background: var(--accent); }
+:root .rail-button[data-page=requests] { --rail-color: var(--nav-requests); }
+:root .rail-button[data-page=environments] { --rail-color: var(--nav-environments); }
+:root .rail-button[data-page=variables] { --rail-color: var(--nav-variables); }
+:root .rail-button[data-page=manage] { --rail-color: var(--nav-manage); }
+:root .rail-button[data-page] { color: var(--rail-color); }
+:root .rail-button[data-page].active:before { background: var(--rail-color); }
 :root :is(.topbar, .sidebar, .statusbar) { background: var(--surface-subtle); }
 :root .version-label { color: var(--muted); border-color: var(--border); }
 :root .main-content { background: var(--panel); }

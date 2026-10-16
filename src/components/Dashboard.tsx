@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { ArrowRight, Braces, ChevronRight, FolderClosed, Globe2, Layers3, Plus, Server, Settings2, Waypoints } from 'lucide-react';
+import { ArrowRight, Braces, ChevronRight, FolderClosed, LayoutGrid, Layers3, Plus, Server, Settings2, Waypoints } from 'lucide-react';
 import type { Workbench } from '../hooks/useWorkbench';
 import type { EntityEditTarget } from './EntityEditor';
 import { ColorDot, ENVIRONMENT_COLOR, PROJECT_COLOR } from './ColorPicker';
@@ -64,7 +64,7 @@ export function Dashboard({ model, onNavigate, onOpenRequest, onCreate }: Props)
   const stats = [
     { label: '接口总数', value: data.requests.length, Icon: Waypoints, detail: '当前项目的全部接口', tone: 'accent' },
     { label: '服务总数', value: data.services.length, Icon: Server, detail: environment ? `${currentConfigured?.size ?? 0} 个已配置当前环境` : '尚未选择当前环境', tone: 'cyan' },
-    { label: '环境总数', value: data.environments.length, Icon: Globe2, detail: `${data.environments.filter(e => e.isProduction).length} 个生产环境`, tone: 'warning' },
+    { label: '环境总数', value: data.environments.length, Icon: LayoutGrid, detail: `${data.environments.filter(e => e.isProduction).length} 个生产环境`, tone: 'warning' },
     { label: '目录总数', value: data.folderCount, Icon: FolderClosed, detail: '按业务分层整理', tone: 'muted' },
   ];
   const creationServiceId = model.request?.serviceId ?? data.services[0]?.id;
@@ -84,7 +84,7 @@ export function Dashboard({ model, onNavigate, onOpenRequest, onCreate }: Props)
 
     <div className="dashboard-shortcuts" aria-label="快捷操作">
       <button onClick={() => onCreate(creationServiceId ? { kind: 'request', serviceId: creationServiceId } : { kind: 'service' })}><Plus size={16} />{creationServiceId ? '新建接口' : '新建服务'}<ChevronRight size={14} /></button>
-      <button onClick={() => onNavigate('environments')}><Globe2 size={16} />配置环境<ChevronRight size={14} /></button>
+      <button onClick={() => onNavigate('environments')}><LayoutGrid size={16} />配置环境<ChevronRight size={14} /></button>
       <button onClick={() => onNavigate('variables')}><Braces size={16} />管理变量<ChevronRight size={14} /></button>
       <button onClick={() => onNavigate('manage')}><Settings2 size={16} />管理工作区<ChevronRight size={14} /></button>
     </div>
@@ -123,12 +123,12 @@ export function Dashboard({ model, onNavigate, onOpenRequest, onCreate }: Props)
       </section>
 
       <section className="dashboard-card" aria-label="环境概览">
-        <header><div><h2>环境概览</h2><p>已配置地址的服务 / 全部服务</p></div><Globe2 size={18} /></header>
+        <header><div><h2>环境概览</h2><p>已配置地址的服务 / 全部服务</p></div><LayoutGrid size={18} /></header>
         <div className="dashboard-card-body">
           {data.environments.length ? <ul className="dashboard-environments">{data.environments.slice(0, 6).map(env => <li key={env.id}>
             <div className="dashboard-environment-label"><ColorDot color={env.color} fallback={ENVIRONMENT_COLOR} /><strong className="ellipsis" title={env.name}>{env.name}</strong>{env.isProduction && <span className="production-tag">生产</span>}{env.id === environment?.id && <span className="dashboard-current">当前</span>}</div>
             <span className="dashboard-coverage" aria-label={`${env.name}配置覆盖`}>{data.configured.get(env.id)?.size ?? 0} / {data.services.length}</span>
-          </li>)}</ul> : <div className="dashboard-empty"><Globe2 size={24} /><p>还没有环境</p><small>添加环境并为服务配置基础地址。</small></div>}
+          </li>)}</ul> : <div className="dashboard-empty"><LayoutGrid size={24} /><p>还没有环境</p><small>添加环境并为服务配置基础地址。</small></div>}
         </div>
         <footer><span>共 {data.environments.length} 个环境 · 仅统计配置</span><button className="text-button" onClick={() => onNavigate('environments')}>查看矩阵<ArrowRight size={13} /></button></footer>
       </section>

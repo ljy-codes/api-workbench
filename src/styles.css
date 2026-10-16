@@ -214,11 +214,20 @@ kbd { font: 10px "Segoe UI", sans-serif; border: 1px solid #3b3d4d; border-radiu
 .empty-state { text-align: center; padding: 70px 24px; color: #939ab5; display: flex; flex-direction: column; align-items: center; gap: 16px; }
 .empty-state h2 { color: #c3c6d8; }
 .empty-state p { line-height: 1.8; }
-.matrix-scroll { overflow: auto; border: 1px solid var(--border); border-radius: 8px; }
-.matrix { width: 100%; border-collapse: collapse; text-align: left; }
-.matrix th { padding: 17px; background: #1e1f29; font-size: 12px; font-weight: 500; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.matrix-hint { color: var(--muted); font-size: 11px; line-height: 1.7; margin-bottom: 12px; }
+.matrix-scroll { overflow: auto; border: 1px solid var(--border); border-radius: 8px; isolation: isolate; }
+.matrix-scroll:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.matrix { width: 100%; border-collapse: separate; border-spacing: 0; text-align: left; }
+.matrix th { padding: 16px; background: var(--surface-subtle); font-size: 12px; font-weight: 500; border-bottom: 1px solid var(--border); white-space: nowrap; }
 .matrix th .status-dot { margin-right: 7px; }
-.matrix td { padding: 16px; border: 1px solid var(--border); min-width: 245px; }
+.matrix th.matrix-service-column { position: sticky; left: 0; z-index: 1; width: 192px; min-width: 192px; max-width: 192px; box-shadow: 1px 0 var(--border), 5px 0 9px -7px var(--text); }
+.matrix-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.matrix-service-name { min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.6; }
+.matrix-environment-name { white-space: normal; overflow-wrap: anywhere; min-width: 0; }
+.matrix-order-actions { display: inline-flex; flex-shrink: 0; gap: 2px; color: var(--muted); }
+.matrix-order-actions .icon-button { width: 24px; height: 24px; padding: 4px; }
+.matrix td { padding: 16px; border-left: 1px solid var(--border); border-bottom: 1px solid var(--border); min-width: 245px; }
+.matrix tbody tr:last-child > :is(th, td) { border-bottom: 0; }
 .matrix td input:not([type=checkbox]) { width: 100%; font: 11px Consolas, monospace; }
 .matrix-controls { display: flex; align-items: center; justify-content: space-between; margin-top: 9px; }
 .checkbox-label { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; color: #a0a5bb; }

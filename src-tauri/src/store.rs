@@ -1226,6 +1226,35 @@ mod tests {
     }
 
     #[test]
+    fn service_and_environment_order_survives_restart() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("matrix-order.sqlite");
+        let store = Store::open(&path).unwrap();
+        let initial = changed(&fixture(), |v| {
+            v["services"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"id":"s3","projectId":"p1","name":"搜索"}));
+            v["environments"]
+                .as_array_mut()
+                .unwrap()
+                .push(json!({"id":"e3","projectId":"p1","name":"联调","isProduction":false}));
+        });
+        let saved = store.save(initial).unwrap();
+        let reordered = changed(&saved, |v| {
+            v["services"].as_array_mut().unwrap().swap(0, 2);
+            v["environments"].as_array_mut().unwrap().swap(0, 2);
+        });
+        let sorted = store.save(reordered).unwrap();
+        assert_eq!(value(&sorted)["bindings"], value(&saved)["bindings"]);
+        assert_eq!(sorted.services[0].id, "s3");
+        assert_eq!(sorted.environments[0].id, "e3");
+        drop(store);
+        let restarted = Store::open(&path).unwrap();
+        assert_eq!(value(&restarted.load().unwrap()), value(&sorted));
+    }
+
+    #[test]
     fn stale_revision_from_second_connection_is_rejected() {
         let dir = tempdir().unwrap();
         let path = dir.path().join("cas.sqlite");

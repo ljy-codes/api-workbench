@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react';
 import { version } from '../package.json';
-import { Braces, ChevronRight, Columns2, Command, Database, FlaskConical, Globe2, Layers3, PanelLeftClose, PanelLeftOpen, Rows2, Save, Settings, Settings2, ShieldCheck, X } from 'lucide-react';
+import { Braces, ChevronRight, Columns2, Command, Database, FlaskConical, LayoutGrid, Layers3, PanelLeftClose, PanelLeftOpen, Rows2, Save, Settings, Settings2, ShieldCheck, X } from 'lucide-react';
 import { useWorkbench } from './hooks/useWorkbench';
 import { useNativeClose } from './hooks/useNativeClose';
 import { desktop } from './lib/ipc';
@@ -54,14 +54,14 @@ export default function App() {
   }, [model, page]);
   const nav = [
     { page: 'requests' as const, label: '接口工作台', Icon: Layers3 },
-    { page: 'environments' as const, label: '环境矩阵', Icon: Globe2 },
+    { page: 'environments' as const, label: '环境矩阵', Icon: LayoutGrid },
     { page: 'variables' as const, label: '变量配置', Icon: Braces },
     { page: 'manage' as const, label: '工作区管理', Icon: Settings2 },
   ];
   const hasProjects = model.workspace.projects.length > 0;
   const openRequest = (id: string) => { model.selectRequest(id); setPage('requests'); };
   return <div className="app-shell">
-    <nav className="rail" aria-label="主导航"><button className="brand-mark" aria-label="返回主页" title="主页 · 项目仪表盘" aria-current={page === 'home' ? 'page' : undefined} onClick={() => setPage('home')}><img src="/envdock.svg" alt="EnvDock" width={34} height={34} /></button><div className="rail-nav">{nav.map(({ page: target, label, Icon }) => <button className={`rail-button ${page === target ? 'active' : ''}`} aria-label={label} title={label} aria-current={page === target ? 'page' : undefined} onClick={() => setPage(target)} key={target}><Icon size={20} /></button>)}</div><div className="rail-settings"><button className="rail-button" aria-label="设置" title="设置" onClick={() => setSettingsOpen(true)}><Settings size={19} /></button><span title="原生执行 · 本地数据"><ShieldCheck size={16} /></span></div></nav>
+    <nav className="rail" aria-label="主导航"><button className="brand-mark" aria-label="返回主页" title="主页 · 项目仪表盘" aria-current={page === 'home' ? 'page' : undefined} onClick={() => setPage('home')}><img src="/envdock.svg" alt="EnvDock" width={34} height={34} /></button><div className="rail-nav">{nav.map(({ page: target, label, Icon }) => <button className={`rail-button ${page === target ? 'active' : ''}`} data-page={target} aria-label={label} title={label} aria-current={page === target ? 'page' : undefined} onClick={() => setPage(target)} key={target}><Icon size={20} /></button>)}</div><div className="rail-settings"><button className="rail-button" aria-label="设置" title="设置" onClick={() => setSettingsOpen(true)}><Settings size={19} /></button><span title="原生执行 · 本地数据"><ShieldCheck size={16} /></span></div></nav>
     <div className="app-main">
       <header className="topbar">
         <div className="brand-title">EnvDock<span className="version-label">{version}</span></div><span className="topbar-divider" />
