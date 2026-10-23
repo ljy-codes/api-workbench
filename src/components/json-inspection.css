@@ -1,0 +1,42 @@
+.json-inspector { border-bottom: 1px solid var(--border); padding: 8px 0; flex-shrink: 0; }
+.json-path-form, .json-inspector-actions, .json-array-controls, .json-array-filter, .json-pagination { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.json-path-form > input { flex: 1; min-width: 100px; font: 12px Consolas, monospace; padding: 6px 8px; }
+.json-path-form > button { font-size: 12px; padding: 6px 9px; }
+.json-inspector-actions { margin-top: 4px; font-size: 11px; }
+.json-inspector-actions .muted { flex: 1; min-width: 140px; }
+.json-inspector-actions .icon-button { min-height: 26px; }
+.inspection-error { color: var(--danger); font-size: 12px; margin: 4px 0 0; }
+.json-array-view { min-height: 0; min-width: 0; display: flex; flex-direction: column; flex: 1; padding-top: 8px; gap: 8px; }
+.json-array-controls { font-size: 12px; }
+.json-array-controls > select { max-width: 100%; flex: 1; min-width: 120px; font: 12px Consolas, monospace; }
+.json-column-picker { position: relative; margin-left: auto; }
+.json-column-picker summary { display: flex; align-items: center; gap: 5px; cursor: pointer; padding: 6px; border: 1px solid var(--border); border-radius: 5px; }
+.json-column-picker > div { position: absolute; right: 0; top: 100%; z-index: 5; background: var(--panel); border: 1px solid var(--border); padding: 8px; border-radius: 5px; min-width: 160px; max-width: 240px; max-height: 240px; overflow: auto; box-shadow: 0 5px 18px var(--shadow); }
+.json-column-picker label { display: flex; align-items: center; gap: 8px; padding: 5px; overflow-wrap: anywhere; }
+.json-array-filter { font-size: 12px; }
+.json-array-filter select { max-width: 130px; }
+.json-array-filter input { flex: 1; min-width: 100px; }
+.json-array-filter input, .json-array-filter select, .json-array-controls select { padding: 6px; font-size: 12px; }
+.json-array-scroll { flex: 1; min-height: 100px; overflow: auto; border: 1px solid var(--border); border-radius: 5px; background: var(--code-bg); }
+.json-array-table { border-collapse: collapse; min-width: 100%; text-align: left; font: 12px/1.6 Consolas, "Microsoft YaHei UI", monospace; }
+.json-array-table td, .json-array-table th { padding: 5px 9px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.json-array-table thead th { position: sticky; top: 0; background: var(--panel); color: var(--code-key); z-index: 1; }
+.json-array-table th > button { border: 0; background: transparent; padding: 2px 0; font: inherit; min-height: 26px; color: inherit; }
+.json-array-table tbody th { font-weight: normal; color: var(--text-secondary); background: var(--panel); text-align: right; }
+.json-array-table tr:hover td { background: var(--code-active-line); }
+.json-array-table .json-cell { max-width: 340px; min-width: 70px; overflow-wrap: anywhere; }
+.json-cell-string { color: var(--code-string); }
+.json-cell-number { color: var(--code-number); }
+.json-cell-literal { color: var(--code-literal); }
+.json-cell-undefined { color: var(--text-secondary); }
+.json-cell-detail { padding: 0 5px; min-height: 26px; font: inherit; color: var(--code-key); border-style: dashed; }
+.json-cell-preview { border: 1px solid var(--border); border-radius: 5px; background: var(--code-bg); padding: 8px; }
+.json-cell-preview > div { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; font-size: 11px; }
+.json-cell-preview code { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.json-cell-preview button, .json-pagination button { font-size: 11px; padding: 5px 8px; min-height: 28px; }
+.json-cell-preview pre { max-height: 220px; overflow: auto; font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.json-pagination { font-size: 11px; padding-bottom: 2px; }
+.json-pagination > span { flex: 1; min-width: 130px; color: var(--text-secondary); }
+.response-baseline { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 0; font-size: 12px; }
+.response-baseline > span { flex: 1; min-width: 140px; color: var(--text-secondary); }
+.response-baseline > button { font-size: 12px; padding: 6px 9px; }

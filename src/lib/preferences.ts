@@ -1,4 +1,4 @@
-export type ThemeMode = 'dark' | 'light' | 'system';
+export type ThemeMode = 'dark' | 'light' | 'system' | 'soft';
 
 export interface Preferences {
   theme: ThemeMode;
@@ -30,7 +30,7 @@ function normalize(value: unknown): Preferences {
   const input = value && typeof value === 'object' && !Array.isArray(value)
     ? value as Record<string, unknown> : {};
   return Object.freeze({
-    theme: input.theme === 'light' || input.theme === 'system' ? input.theme : 'dark',
+    theme: input.theme === 'light' || input.theme === 'system' || input.theme === 'soft' ? input.theme : 'dark',
     sidebarCollapsed: typeof input.sidebarCollapsed === 'boolean' ? input.sidebarCollapsed : false,
     layout: input.layout === 'side-by-side' ? 'side-by-side' : 'stacked',
     sidebarWidth: pixels(input.sidebarWidth, DEFAULT_PREFERENCES.sidebarWidth, 200, 420),
@@ -45,7 +45,7 @@ function applyTheme(): void {
     ? (systemTheme ? (systemTheme.matches ? 'dark' : 'light') : 'dark')
     : preferences.theme;
   document.documentElement.dataset.theme = theme;
-  document.documentElement.style.colorScheme = theme;
+  document.documentElement.style.colorScheme = theme === 'soft' ? 'light' : theme;
 }
 
 function stopSystemTheme(): void {

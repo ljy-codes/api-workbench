@@ -1,4 +1,4 @@
-/* Quiet chrome, expressive data. Shared rules below use both theme palettes. */
+/* Quiet chrome, expressive data. Shared rules below use all theme palettes. */
 :root,
 :root[data-theme=dark] {
   color-scheme: dark;
@@ -116,6 +116,65 @@
   --method-get: #08775a;
   --method-post: #865606;
   --method-write: #285fae;
+}
+
+/* Misty sage chrome and warm paper keep the data, rather than the shell, vivid. */
+:root[data-theme=soft] {
+  color-scheme: light;
+  --bg: #e8eceb;
+  --panel: #f7f8f4;
+  --panel-raised: #e2e9e5;
+  --border: #c6d0ca;
+  --text: #33463e;
+  --text-secondary: #485b54;
+  --muted: #52615b;
+  --accent: #49645b;
+  --nav-requests: #526a7f;
+  --nav-environments: #75617f;
+  --nav-variables: #496d60;
+  --nav-manage: #7b603c;
+  --cyan: #24705f;
+  --danger: #a74250;
+  --surface-subtle: #dee6e3;
+  --control-bg: #fbfcf9;
+  --control-border: #6f8077;
+  --button-bg: #e5ebe7;
+  --button-hover: #d6dfd9;
+  --accent-soft: #dce5df;
+  --accent-border: #6f8077;
+  --selection-text: #334e43;
+  --primary-bg: #dce6df;
+  --primary-hover: #cedbd2;
+  --primary-text: #355347;
+  --success: #24705f;
+  --success-bg: #e0eee6;
+  --warning: #805c20;
+  --warning-bg: #f5ecd8;
+  --danger-bg: #f5e5e7;
+  --danger-border: #c7979e;
+  --danger-solid: #a74250;
+  --danger-hover: #943845;
+  --focus-ring: #59786b;
+  --overlay-shadow: 0 12px 30px #34483d1f;
+  --dialog-shadow: 0 26px 90px #34483d30;
+  --dialog-backdrop: #34483d59;
+  --scrollbar: #b3c1b8;
+  --scrollbar-hover: #8a9e91;
+  --code-bg: #f7f8f4;
+  --code-text: #34483f;
+  --code-gutter: #576960;
+  --code-active-line: #edf1eb;
+  --code-key: #4c6580;
+  --code-string: #8a561a;
+  --code-number: #24705f;
+  --code-literal: #795a8e;
+  --code-punctuation: #5a6861;
+  --code-selection: #e0e9e3;
+  --code-search-bg: #efdaa5;
+  --code-search-text: #624714;
+  --method-get: #24705f;
+  --method-post: #805c20;
+  --method-write: #4c6580;
 }
 
 /* CodeMirror's injected dark extension keeps using these theme-aware colors. */
@@ -388,6 +447,7 @@
 :root :is(.dialog-header, .dialog-footer) { border-color: var(--border); }
 :root .confirm-message { color: var(--text-secondary); }
 :root .statusbar { color: var(--muted); }
+:root[data-theme=soft] :is(.topbar, .statusbar, .request-tabs) { background: var(--bg); }
 :root .footer-divider { color: var(--muted); }
 :root .toast {
   background: var(--panel-raised);
@@ -415,6 +475,18 @@
   background: var(--accent-soft);
   color: var(--accent);
 }
+:root .settings-content .theme-options { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+:root .theme-soft .theme-thumbnail {
+  background: #e8eceb;
+  border-color: #b4c2ba;
+  padding: 4px;
+  gap: 4px;
+}
+:root .theme-soft .theme-thumbnail > i { background: #dee6e3; border: 0; border-radius: 2px; }
+:root .theme-soft .theme-thumbnail > b { background: #f7f8f4; padding: 10px 6px; border-radius: 2px; }
+:root .theme-soft .theme-thumbnail em { background: #4c6580; }
+:root .theme-soft .theme-thumbnail em:nth-child(2) { background: #8a561a; }
+:root .theme-soft .theme-thumbnail em:nth-child(3) { background: #24705f; }
 :root .transfer-tree {
   background: var(--surface-subtle);
 }
@@ -433,3 +505,13 @@
 }
 :root ::-webkit-scrollbar-thumb { background: var(--scrollbar); }
 :root ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+@media (max-width: 760px) {
+  :root .settings-content .theme-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 540px) {
+  :root .settings-layout { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  :root .settings-nav { flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--border); padding: 10px; }
+  :root .settings-local { display: none; }
+  :root .settings-content { padding: 20px; }
+}

@@ -113,6 +113,21 @@ describe('颜色、快捷键和环境 UI 边界', () => {
     fireEvent.click(screen.getByRole('button', { name: '清除当前响应' }));
     expect(state.model.clearResponse).toHaveBeenCalledTimes(1);
   });
+  it('手动保存的比较基准在新执行重新挂载响应后保留，并按环境隔离', async () => {
+    const { rerender } = render(<App />);
+    fireEvent.change(screen.getByLabelText('响应显示格式'), { target: { value: 'compare' } });
+    fireEvent.click(await screen.findByRole('button', { name: '设为对比基准' }));
+    expect(screen.getByText(/基准已保存/)).toBeTruthy();
+    state.model = { ...state.model, execution: { ...state.model.execution!, id: 'new-execution',
+      response: { ...state.model.execution!.response!, body: '{"added":1}', executionId: 'new-execution' } } };
+    rerender(<App />);
+    fireEvent.change(screen.getByLabelText('响应显示格式'), { target: { value: 'compare' } });
+    expect(await screen.findByText('$.added')).toBeTruthy();
+    state.model = { ...state.model, environment: state.model.workspace.environments[1] };
+    rerender(<App />);
+    fireEvent.change(screen.getByLabelText('响应显示格式'), { target: { value: 'compare' } });
+    expect(screen.getByText(/尚未设置比较基准/)).toBeTruthy();
+  });
   it('相同请求和 execution id 切换环境重置编辑器及响应局部状态', () => {
     const { rerender } = render(<App />);
     fireEvent.change(screen.getByLabelText('编辑器局部草稿'), { target: { value: '旧环境临时输入' } });

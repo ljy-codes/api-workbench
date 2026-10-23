@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ArrowDownUp, Columns2, Database, Download, Monitor, Moon, Palette, PanelLeft, Rows2, Sun } from 'lucide-react';
+import { ArrowDownUp, Columns2, Database, Download, Leaf, Monitor, Moon, Palette, PanelLeft, Rows2, Sun } from 'lucide-react';
 import type { Workbench } from '../hooks/useWorkbench';
 import type { Preferences } from '../lib/preferences';
 import { Dialog } from './Dialog';
@@ -27,6 +27,7 @@ export default function SettingsPanel({ model, preferences, updatePreferences, o
           <div className="eyebrow">APPEARANCE</div><h3>适合你的工作光线</h3><p className="hint">立即生效，下次启动沿用。</p>
           <div className="theme-options">{([
             { id: 'light', name: '浅色', Icon: Sun }, { id: 'dark', name: '深色', Icon: Moon }, { id: 'system', name: '跟随系统', Icon: Monitor },
+            { id: 'soft', name: '雾青', Icon: Leaf },
           ] as const).map(({ id, name, Icon }) => <button key={id} className={`theme-option theme-${id}`} aria-pressed={preferences.theme === id} onClick={() => updatePreferences({ theme: id })}>
             <span className="theme-thumbnail" aria-hidden="true"><i /><b><em /><em /><em /></b></span><span><Icon size={15} />{name}</span>
           </button>)}</div>
