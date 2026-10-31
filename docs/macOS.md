@@ -14,6 +14,7 @@
 - 敏感值使用 AES-256-GCM，随机 256 位密钥保存在登录钥匙串，数据库只保存版本标识、随机 nonce 和密文。每次加密生成独立 nonce，认证失败不返回明文。钥匙串不可用则拒绝操作。
 - Windows DPAPI 密文无法直接在 Mac 解密，迁移时需重新输入敏感值。备份数据库不能替代钥匙串密钥备份。
 - 使用现有品牌图案生成 ICNS 图标；新增启动、构建脚本，支持项目内隔离 Rust。
+- 应用包使用完整 ad-hoc 临时签名封装资源；这不等同于 Apple Developer ID 签名或公证。
 
 ## 开发和构建
 
@@ -58,6 +59,13 @@ Node 25 默认的实验性 Web Storage 与原有 jsdom 测试冲突，测试时�
 - Release `.app` / `.dmg` 均生成成功，DMG 经 `hdiutil verify` 校验通过。
 - 已启动应用，确认进程持续运行，并在正确的 Application Support 目录创建数据库。
 - 桌面控制服务启动失败，未完成界面截图及逐项点击验证；没有把进程启动检查当作完整 UI 验收。
-- 应用未使用 Apple Developer ID 签名或公证；未验证 Apple Silicon 原生构建。
+- Intel 和 Apple Silicon（arm64）两种 Release 构建均已完成；M 系列版本由 Intel Mac 交叉编译，未进行 M 系列设备实际启动验证。
+- 发布前为两个架构的应用补齐完整 ad-hoc 签名，并检查应用签名和 DMG 完整性。未使用 Apple Developer ID 签名或公证。
 
-交付目录：`publish/EnvDock-1.0.0-macos-x64/`。打开 DMG 后将 EnvDock 拖到 Applications，或直接双击目录中的 `.app`。
+交付目录：
+
+- Intel：`publish/EnvDock-1.0.0-macos-x64/`。
+- M 系列：`publish/EnvDock-1.0.0-macos-arm64/`。
+- Release 附件汇总：`publish/EnvDock-1.0.0-macos-release/`，含两种 DMG、SHA-256 校验文件、说明和许可证。
+
+打开对应架构的 DMG，将 EnvDock 拖到 Applications，或直接双击对应目录中的 `.app`。
