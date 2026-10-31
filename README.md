@@ -76,6 +76,10 @@ MIT 是源码使用许可，不是 Windows Authenticode 数字签名；当前 EX
 
 运行数据由 Rust 使用 SQLite 保存；敏感变量通过 Windows DPAPI 保护。无账号、云同步、遥测、远程日志或自动更新。
 
+## macOS 版本
+
+已增加 macOS 适配，可生成 Intel 和 Apple Silicon（M 系列）的 `.app` / `.dmg`。运行 `npm run desktop:mac`，本机架构构建 `npm run build:mac`，M 系列构建 `npm run build:mac:arm64`。数据路径、钥匙串保护及构建说明见 [macOS 适配说明](docs/macOS.md)。
+
 ## 开发启动
 
 要求 Node.js、Rust MSVC 工具链、MSVC C++ Build Tools、Windows SDK 和 WebView2 Runtime。

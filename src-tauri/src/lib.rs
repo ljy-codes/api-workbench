@@ -230,13 +230,15 @@ async fn backup_workspace(state: State<'_, AppState>) -> Result<String, String> 
     .map_err(|_| "备份工作区任务失败")?
 }
 
-fn data_directory() -> Result<PathBuf, Box<dyn std::error::Error>> {
+fn data_directory(app: &tauri::App) -> Result<PathBuf, Box<dyn std::error::Error>> {
     if cfg!(feature = "portable") {
         let exe = std::env::current_exe()?;
         Ok(exe
             .parent()
             .ok_or("无法确定程序目录")?
             .join("ApiWorkbenchData"))
+    } else if cfg!(target_os = "macos") {
+        Ok(app.path().app_data_dir()?)
     } else {
         let local = std::env::var_os("LOCALAPPDATA").ok_or("无法确定本地数据目录 LOCALAPPDATA")?;
         Ok(PathBuf::from(local).join("ApiWorkbench"))
@@ -254,7 +256,7 @@ pub fn run() {
             }
         }))
         .setup(|app| {
-            let data_dir = data_directory()?;
+            let data_dir = data_directory(app)?;
             std::fs::create_dir_all(&data_dir)?;
             let store =
                 store::Store::open(&data_dir.join("app.db")).map_err(std::io::Error::other)?;
@@ -284,5 +286,5 @@ pub fn run() {
             backup_workspace
         ])
         .run(tauri::generate_context!())
-        .expect("EnvDock 启动失败：请检查数据目录权限与 WebView2 运行时");
+        .expect("EnvDock 启动失败：请检查数据目录权限与系统 WebView 运行环境");
 }
