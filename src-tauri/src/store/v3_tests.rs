@@ -430,10 +430,10 @@ fn deleting_one_request_keeps_other_cache_and_clear_compact_reclaims_disk() {
 }
 
 #[test]
-fn release_native_versions_are_1_0_0() {
-    assert_eq!(env!("CARGO_PKG_VERSION"), "1.0.0");
+fn release_native_versions_are_1_1_0() {
+    assert_eq!(env!("CARGO_PKG_VERSION"), "1.1.0");
     let config: Value = serde_json::from_str(include_str!("../../tauri.conf.json")).unwrap();
-    assert_eq!(config["version"], "1.0.0");
+    assert_eq!(config["version"], "1.1.0");
 }
 
 #[test]

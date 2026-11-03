@@ -11,7 +11,11 @@
     "test:packaging": "node --test scripts/test-packaging.mjs",
     "test:watch": "vitest",
     "tauri": "tauri",
-    "desktop": "powershell -ExecutionPolicy Bypass -File scripts/dev.ps1"
+    "desktop": "powershell -ExecutionPolicy Bypass -File scripts/dev.ps1",
+    "desktop:windows": "powershell -ExecutionPolicy Bypass -File scripts/dev.ps1",
+    "build:mac": "sh scripts/mac.sh build",
+    "desktop:mac": "sh scripts/mac.sh dev",
+    "build:mac:arm64": "sh scripts/mac.sh build-arm64"
   },
   "dependencies": {
     "@codemirror/lang-json": "^6",

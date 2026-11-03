@@ -1,4 +1,4 @@
-//! Windows current-user DPAPI only: never fall back to plaintext or machine scope.
+//! OS-protected secrets: Windows DPAPI or macOS Keychain-backed AES-GCM.
 
 #[cfg(windows)]
 mod windows {
@@ -81,12 +81,20 @@ mod windows {
     }
 }
 
+#[cfg(target_os = "macos")]
+#[path = "secrets_macos.rs"]
+mod macos;
+
 pub(crate) fn protect(value: &str) -> Result<Vec<u8>, String> {
+    #[cfg(target_os = "macos")]
+    {
+        macos::protect(value)
+    }
     #[cfg(windows)]
     {
         windows::transform(value.as_bytes(), true)
     }
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "macos")))]
     {
         let _ = value;
         Err("DPAPI 仅支持 Windows，禁止明文保存敏感值".to_string())
@@ -94,6 +102,10 @@ pub(crate) fn protect(value: &str) -> Result<Vec<u8>, String> {
 }
 
 pub(crate) fn unprotect(ciphertext: &[u8]) -> Result<String, String> {
+    #[cfg(target_os = "macos")]
+    {
+        macos::unprotect(ciphertext)
+    }
     #[cfg(windows)]
     {
         let bytes = windows::transform(ciphertext, false)?;
@@ -106,7 +118,7 @@ pub(crate) fn unprotect(ciphertext: &[u8]) -> Result<String, String> {
             "DPAPI 解密结果不是有效 UTF-8".to_string()
         })
     }
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "macos")))]
     {
         let _ = ciphertext;
         Err("DPAPI 仅支持 Windows，无法解密敏感值".to_string())
@@ -136,7 +148,7 @@ mod tests {
         assert!(!error.contains("private-sensitive-material"));
     }
 
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "macos")))]
     #[test]
     fn non_windows_has_no_plaintext_fallback() {
         assert!(protect("secret").is_err());

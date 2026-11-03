@@ -2210,7 +2210,7 @@ mod tests {
         );
     }
 
-    #[cfg(not(windows))]
+    #[cfg(not(any(windows, target_os = "macos")))]
     #[test]
     fn unsupported_secret_backend_rolls_back_the_whole_save() {
         let dir = tempdir().unwrap();
