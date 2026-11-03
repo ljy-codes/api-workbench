@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react';
 import { version } from '../package.json';
-import { Braces, ChevronRight, Columns2, Command, Database, FlaskConical, LayoutGrid, Layers3, PanelLeftClose, PanelLeftOpen, Rows2, Save, Settings, Settings2, ShieldCheck, X } from 'lucide-react';
+import { Braces, ChevronRight, Columns2, Command, Database, FileJson2, FlaskConical, LayoutGrid, Layers3, PanelLeftClose, PanelLeftOpen, Rows2, Save, Settings, Settings2, ShieldCheck, X } from 'lucide-react';
 import { useWorkbench } from './hooks/useWorkbench';
 import { useNativeClose } from './hooks/useNativeClose';
 import { desktop } from './lib/ipc';
@@ -22,12 +22,14 @@ import { usePreferences } from './hooks/usePreferences';
 import { useResponseBaselines } from './hooks/useResponseBaselines';
 
 const SettingsPanel = lazy(() => import('./components/SettingsPanel'));
+const JsonToolsDialog = lazy(() => import('./components/JsonToolsDialog'));
 
 type Page = 'home' | 'requests' | 'environments' | 'variables' | 'manage';
 export default function App() {
   const model = useWorkbench();
   const [page, setPage] = useState<Page>('requests');
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [jsonToolsOpen, setJsonToolsOpen] = useState(false);
   const [creation, setCreation] = useState<EntityEditTarget | null>(null);
   const { preferences, updatePreferences } = usePreferences();
   const { baseline, saveBaseline, clearBaseline } = useResponseBaselines(JSON.stringify([model.request?.id, model.environment?.id]));
@@ -42,18 +44,18 @@ export default function App() {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
         event.preventDefault();
         event.stopPropagation();
-        if (!event.repeat && !event.isComposing && !document.querySelector('dialog[open]') && !model.confirmation && !model.busy && !model.loading && desktop) void model.save();
+        if (!event.repeat && !event.isComposing && !jsonToolsOpen && !document.querySelector('dialog[open]') && !model.confirmation && !model.busy && !model.loading && desktop) void model.save();
         return;
       }
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && !event.isComposing) {
         event.preventDefault();
         event.stopPropagation();
-        if (!event.repeat && !document.querySelector('dialog[open]') && page === 'requests') void model.execute();
+        if (!event.repeat && !jsonToolsOpen && !document.querySelector('dialog[open]') && page === 'requests') void model.execute();
       }
     };
     window.addEventListener('keydown', handler, true);
     return () => window.removeEventListener('keydown', handler, true);
-  }, [model, page]);
+  }, [model, page, jsonToolsOpen]);
   const nav = [
     { page: 'requests' as const, label: '接口工作台', Icon: Layers3 },
     { page: 'environments' as const, label: '环境矩阵', Icon: LayoutGrid },
@@ -63,7 +65,7 @@ export default function App() {
   const hasProjects = model.workspace.projects.length > 0;
   const openRequest = (id: string) => { model.selectRequest(id); setPage('requests'); };
   return <div className="app-shell">
-    <nav className="rail" aria-label="主导航"><button className="brand-mark" aria-label="返回主页" title="主页 · 项目仪表盘" aria-current={page === 'home' ? 'page' : undefined} onClick={() => setPage('home')}><img src="/envdock.svg" alt="EnvDock" width={34} height={34} /></button><div className="rail-nav">{nav.map(({ page: target, label, Icon }) => <button className={`rail-button ${page === target ? 'active' : ''}`} data-page={target} aria-label={label} title={label} aria-current={page === target ? 'page' : undefined} onClick={() => setPage(target)} key={target}><Icon size={20} /></button>)}</div><div className="rail-settings"><button className="rail-button" aria-label="设置" title="设置" onClick={() => setSettingsOpen(true)}><Settings size={19} /></button><span title="原生执行 · 本地数据"><ShieldCheck size={16} /></span></div></nav>
+    <nav className="rail" aria-label="主导航"><button className="brand-mark" aria-label="返回主页" title="主页 · 项目仪表盘" aria-current={page === 'home' ? 'page' : undefined} onClick={() => setPage('home')}><img src="/envdock.svg" alt="EnvDock" width={34} height={34} /></button><div className="rail-nav">{nav.map(({ page: target, label, Icon }) => <button className={`rail-button ${page === target ? 'active' : ''}`} data-page={target} aria-label={label} title={label} aria-current={page === target ? 'page' : undefined} onClick={() => setPage(target)} key={target}><Icon size={20} /></button>)}<button className="rail-button" aria-label="JSON 工具" title="JSON 工具 · 临时格式化与搜索" aria-haspopup="dialog" aria-expanded={jsonToolsOpen} onClick={() => setJsonToolsOpen(true)}><FileJson2 size={20} /></button></div><div className="rail-settings"><button className="rail-button" aria-label="设置" title="设置" onClick={() => setSettingsOpen(true)}><Settings size={19} /></button><span title="原生执行 · 本地数据"><ShieldCheck size={16} /></span></div></nav>
     <div className="app-main">
       <header className="topbar">
         <div className="brand-title">EnvDock<span className="version-label">{version}</span></div><span className="topbar-divider" />
@@ -90,6 +92,7 @@ export default function App() {
     </div>
     {model.notice && <div className="toast" role="status"><span>{model.notice}</span><button className="icon-button" aria-label="关闭通知" onClick={() => model.setNotice('')}><X size={15} /></button>{desktop && !hasProjects && <button onClick={() => void model.load()}>重新加载</button>}</div>}
     {settingsOpen && <Suspense fallback={null}><SettingsPanel model={model} preferences={preferences} updatePreferences={updatePreferences} onClose={() => setSettingsOpen(false)} /></Suspense>}
+    {jsonToolsOpen && <Suspense fallback={null}><JsonToolsDialog onClose={() => setJsonToolsOpen(false)} /></Suspense>}
     {creation && <EntityEditor model={model} target={creation} onClose={() => setCreation(null)} />}
     {model.confirmation && <ConfirmDialog value={model.confirmation} close={() => model.setConfirmation(null)} />}
   </div>;

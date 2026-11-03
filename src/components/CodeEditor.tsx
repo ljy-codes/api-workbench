@@ -1,5 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'react';
-import CodeMirror, { Decoration, EditorView } from '@uiw/react-codemirror';
+import CodeMirror, { Decoration, EditorView, ExternalChange } from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
 import { codeFolding, foldEffect, foldedRanges, foldService, unfoldAll, unfoldEffect } from '@codemirror/language';
 import { jsonFolds } from '../lib/json-folding';
@@ -11,6 +11,7 @@ export interface CodeEditorHandle {
   collapseAll: () => void;
   expandAll: () => void;
   revealRange: (range: JsonRange) => void;
+  replaceValue: (value: string) => void;
 }
 const noMatches: BodyMatch[] = [];
 function revealRange(view: EditorView, range: JsonRange) {
@@ -27,12 +28,12 @@ function revealRange(view: EditorView, range: JsonRange) {
 const CodeEditor = forwardRef<CodeEditorHandle, {
   value: string; isJson: boolean; disabled?: boolean; readOnly?: boolean; label?: string;
   matches?: BodyMatch[]; onChange?: (value: string) => void;
-  reveal?: JsonRange; onSelectPosition?: (position: number) => void;
+  reveal?: JsonRange; onSelectPosition?: (position: number) => void; structuralFolding?: boolean;
 }>(function CodeEditor({
-  value, isJson, disabled = false, readOnly = false, label = '请求正文', matches = noMatches, onChange, reveal, onSelectPosition,
+  value, isJson, disabled = false, readOnly = false, label = '请求正文', matches = noMatches, onChange, reveal, onSelectPosition, structuralFolding = false,
 }, ref) {
   const editor = useRef<EditorView | null>(null);
-  const folds = useMemo(() => readOnly && isJson ? jsonFolds(value) : null, [value, isJson, readOnly]);
+  const folds = useMemo(() => (readOnly || structuralFolding) && isJson ? jsonFolds(value) : null, [value, isJson, readOnly, structuralFolding]);
   useImperativeHandle(ref, () => ({
     collapseAll() {
       const view = editor.current;
@@ -50,6 +51,16 @@ const CodeEditor = forwardRef<CodeEditorHandle, {
     },
     expandAll() { if (editor.current) unfoldAll(editor.current); },
     revealRange(range) { if (editor.current) revealRange(editor.current, range); },
+    replaceValue(value) {
+      const view = editor.current;
+      if (!view || view.state.doc.toString() === value) return;
+      // Explicit format actions must finish before folding/searching. The React
+      // wrapper otherwise defers prop updates for 200ms after a user edit.
+      view.dispatch({
+        changes: { from: 0, to: view.state.doc.length, insert: value },
+        selection: { anchor: 0 }, annotations: ExternalChange.of(true),
+      });
+    },
   }), [folds]);
   useEffect(() => { if (editor.current) unfoldAll(editor.current); }, [value, isJson]);
   useEffect(() => { if (editor.current && reveal) revealRange(editor.current, reveal); }, [reveal, value]);

@@ -21,9 +21,11 @@ export const editorTheme = [
     '.cm-foldGutter span': { color: 'var(--text-secondary)', cursor: 'pointer' },
     '.cm-foldGutter span:hover': { color: 'var(--accent)' },
     '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'var(--code-active-line)' },
+    // The selection layer sits behind line backgrounds; keep selected text visible.
+    '&:has(.cm-selectionBackground) .cm-activeLine': { backgroundColor: 'transparent' },
     '.cm-foldPlaceholder': { backgroundColor: 'var(--panel-raised)', color: 'var(--text-secondary)', border: '1px solid var(--border)', padding: '0 5px', font: 'inherit', lineHeight: '1.3', cursor: 'pointer' },
     '&.cm-focused .cm-cursor': { borderLeftColor: 'var(--accent)' },
-    '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: 'var(--code-selection)' },
+    '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: 'var(--code-selection)' },
     '.cm-searchMatch': { backgroundColor: 'var(--code-search-bg)', color: 'var(--code-search-text)', borderRadius: '2px' },
   }, { dark: true }),
   syntaxHighlighting(jsonHighlightStyle),

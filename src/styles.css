@@ -133,6 +133,7 @@ kbd { font: 10px "Segoe UI", sans-serif; border: 1px solid #3b3d4d; border-radiu
 .body-type-tab > button { padding-right: 4px; color: inherit; }
 .body-type-tab select { border: none; background: transparent; color: inherit; padding: 5px 0; max-width: 100px; font-size: 12px; }
 .editor-tools { display: flex; align-items: center; gap: 2px; flex-shrink: 0; }
+.request-body-copy { min-height: 28px; padding: 5px 7px; gap: 5px; font-size: 12px; }
 .request-menu { position: relative; }
 .request-menu summary { display: flex; list-style: none; cursor: pointer; color: #a3a9bc; }
 .request-menu summary::-webkit-details-marker { display: none; }

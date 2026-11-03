@@ -1,4 +1,5 @@
 import { lazy, Suspense, useRef, useState } from 'react';
+import { formatJson } from '../lib/json-format';
 import { ArrowUpRight, Braces, Copy, Ellipsis, Eye, Send, Square, WandSparkles, X } from 'lucide-react';
 import type { Workbench } from '../hooks/useWorkbench';
 import type { RequestDefinition } from '../types';
@@ -28,8 +29,16 @@ export function RequestEditor({ model, onConfigureAddresses }: { model: Workbenc
   const closeMenu = () => { if (menu.current) menu.current.open = false; };
   const preview = () => { closeMenu(); setShowPreview(true); void model.execute(true); };
   const formatBody = () => {
-    try { update({ body: JSON.stringify(JSON.parse(request.body), null, 2) }); }
+    try { update({ body: formatJson(request.body, { removeNull: true }) }); }
     catch { model.setNotice('JSON 格式无效，无法格式化；请检查正文。'); }
+  };
+  const copyBody = async () => {
+    try {
+      await navigator.clipboard.writeText(request.body);
+      model.setNotice('已复制完整请求体。');
+    } catch {
+      model.setNotice('复制失败，请点击请求体后按 Ctrl/Cmd+A 全选，再按 Ctrl/Cmd+C 复制。');
+    }
   };
   return <section className="request-editor" aria-label="请求编辑">
     {model.environment?.isProduction && <p className="warning-line">当前为生产环境；发送前需再次确认。取消请求不代表回滚。</p>}
@@ -59,7 +68,8 @@ export function RequestEditor({ model, onConfigureAddresses }: { model: Workbenc
         {tabs.map(t => <button role="tab" key={t.id} aria-label={t.id === 'query' ? '参数' : t.id === 'auth' ? '鉴权' : undefined} aria-selected={tab === t.id} onClick={() => setTab(t.id)}>{t.label}{!!t.count && <small>{t.count}</small>}</button>)}
       </div>
       <div className="editor-tools">
-        {tab === 'body' && request.bodyType === 'json' && <button className="icon-button" aria-label="格式化 JSON" title="格式化 JSON" disabled={!model.environment || model.busy} onClick={formatBody}><WandSparkles size={14} /></button>}
+        {tab === 'body' && ['json', 'text'].includes(request.bodyType) && <button type="button" className="icon-button request-body-copy" aria-label="复制请求体" title="复制完整请求体（保留原文与变量占位符）" disabled={!request.body.length || model.busy} onClick={() => void copyBody()}><Copy size={14} aria-hidden="true" />复制</button>}
+        {tab === 'body' && request.bodyType === 'json' && <button className="icon-button" aria-label="格式化 JSON" title="格式化 JSON · 去除 null 字段和末尾多余逗号" disabled={!model.environment || model.busy} onClick={formatBody}><WandSparkles size={14} /></button>}
         <details className="request-menu" ref={menu} onBlur={event => {
           if (!event.currentTarget.contains(event.relatedTarget as Node | null)) closeMenu();
         }} onKeyDown={event => {

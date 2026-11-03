@@ -55,7 +55,11 @@ test('installer contains no bundled user files or sidecars', () => {
 
 test('version and storage paths remain compatible', () => {
   assert.equal(config.version, JSON.parse(read('package.json')).version);
+  const lock = JSON.parse(read('package-lock.json'));
+  assert.equal(lock.version, config.version);
+  assert.equal(lock.packages[''].version, config.version);
   assert.match(read('src-tauri/Cargo.toml'), new RegExp(`version = "${config.version.replaceAll('.', '\\.')}"`));
+  assert.match(read('src-tauri/Cargo.lock'), new RegExp(`name = "api-workbench"\\s+version = "${config.version.replaceAll('.', '\\.')}"`));
   const native = read('src-tauri/src/lib.rs');
   assert.match(native, /join\("ApiWorkbench"\)/);
   assert.match(native, /join\("ApiWorkbenchData"\)/);
