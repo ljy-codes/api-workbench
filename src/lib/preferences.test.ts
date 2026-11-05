@@ -64,16 +64,18 @@ describe('本机偏好与启动主题', () => {
     expect(result.current.preferences).toEqual(defaults);
   });
 
-  it('启动恢复雾青主题，使用浅色原生控件且不改写存储', async () => {
+  it.each([
+    ['soft', 'light'], ['dusk', 'dark'],
+  ] as const)('启动恢复 %s 主题，使用 %s 原生控件且不改写存储', async (theme, colorScheme) => {
     const system = mockSystemTheme(true);
-    const saved = JSON.stringify({ ...defaults, theme: 'soft', editorWidth: 640 });
+    const saved = JSON.stringify({ ...defaults, theme, editorWidth: 640 });
     localStorage.setItem(storageKey, saved);
     const write = vi.spyOn(Storage.prototype, 'setItem');
     const { initializePreferences, getPreferences } = await loadPreferences();
     initializePreferences();
-    expect(getPreferences()).toEqual({ ...defaults, theme: 'soft', editorWidth: 640 });
-    expect(document.documentElement.dataset.theme).toBe('soft');
-    expect(document.documentElement.style.colorScheme).toBe('light');
+    expect(getPreferences()).toEqual({ ...defaults, theme, editorWidth: 640 });
+    expect(document.documentElement.dataset.theme).toBe(theme);
+    expect(document.documentElement.style.colorScheme).toBe(colorScheme);
     expect(localStorage.getItem(storageKey)).toBe(saved);
     expect(write).not.toHaveBeenCalled();
     expect(system.matchMedia).not.toHaveBeenCalled();
@@ -92,15 +94,17 @@ describe('本机偏好与启动主题', () => {
     expect(write).not.toHaveBeenCalled();
   });
 
-  it('保存雾青后新实例恢复完整偏好，存储写入失败也即时应用', async () => {
+  it.each([
+    ['soft', 'light'], ['dusk', 'dark'],
+  ] as const)('保存 %s 后新实例恢复完整偏好，存储写入失败也即时应用', async (theme, colorScheme) => {
     const first = await loadPreferences();
     const { result, unmount } = renderHook(first.usePreferences);
-    const expected: Preferences = { ...defaults, theme: 'soft', sidebarCollapsed: true, editorHeight: 420 };
+    const expected: Preferences = { ...defaults, theme, sidebarCollapsed: true, editorHeight: 420 };
     const write = vi.spyOn(Storage.prototype, 'setItem').mockImplementationOnce(() => { throw new Error('Full'); });
     expect(() => act(() => result.current.updatePreferences(expected))).not.toThrow();
     expect(result.current.preferences).toEqual(expected);
-    expect(document.documentElement.dataset.theme).toBe('soft');
-    expect(document.documentElement.style.colorScheme).toBe('light');
+    expect(document.documentElement.dataset.theme).toBe(theme);
+    expect(document.documentElement.style.colorScheme).toBe(colorScheme);
     act(() => result.current.updatePreferences({ editorWidth: 650 }));
     expect(write).toHaveBeenCalledTimes(2);
     expect(JSON.parse(localStorage.getItem(storageKey)!)).toEqual({ ...expected, editorWidth: 650 });
@@ -109,8 +113,8 @@ describe('本机偏好与启动主题', () => {
     const second = await loadPreferences();
     second.initializePreferences();
     expect(second.getPreferences()).toEqual({ ...expected, editorWidth: 650 });
-    expect(document.documentElement.dataset.theme).toBe('soft');
-    expect(document.documentElement.style.colorScheme).toBe('light');
+    expect(document.documentElement.dataset.theme).toBe(theme);
+    expect(document.documentElement.style.colorScheme).toBe(colorScheme);
   });
 
   it.each(['{broken', 'null', '42', 'true', '"light"', '[]'])(
@@ -252,19 +256,22 @@ describe('本机偏好与启动主题', () => {
 });
 
 describe('系统主题监听的生命周期', () => {
-  it.each([false, true])('从系统主题切到雾青后解除监听且不受系统变化影响（初始深色 %s）', async initialDark => {
+  it.each([
+    [false, 'soft', 'light'], [true, 'soft', 'light'],
+    [false, 'dusk', 'dark'], [true, 'dusk', 'dark'],
+  ] as const)('从系统主题（深色 %s）切到 %s 后解除监听且不受系统变化影响', async (initialDark, theme, colorScheme) => {
     const system = mockSystemTheme(initialDark);
     localStorage.setItem(storageKey, JSON.stringify({ theme: 'system' }));
     const { usePreferences } = await loadPreferences();
     const { result } = renderHook(usePreferences);
     expect(system.listeners.size).toBe(1);
-    act(() => result.current.updatePreferences({ theme: 'soft' }));
+    act(() => result.current.updatePreferences({ theme }));
     expect(system.listeners.size).toBe(0);
     system.change(!initialDark);
-    expect(result.current.preferences.theme).toBe('soft');
-    expect(document.documentElement.dataset.theme).toBe('soft');
-    expect(document.documentElement.style.colorScheme).toBe('light');
-    expect(JSON.parse(localStorage.getItem(storageKey)!).theme).toBe('soft');
+    expect(result.current.preferences.theme).toBe(theme);
+    expect(document.documentElement.dataset.theme).toBe(theme);
+    expect(document.documentElement.style.colorScheme).toBe(colorScheme);
+    expect(JSON.parse(localStorage.getItem(storageKey)!).theme).toBe(theme);
     act(() => result.current.updatePreferences({ theme: 'system' }));
     expect(system.listeners.size).toBe(1);
     expect(document.documentElement.dataset.theme).toBe(initialDark ? 'light' : 'dark');

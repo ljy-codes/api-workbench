@@ -1,5 +1,6 @@
 import { useId, useMemo, useState } from 'react';
 import { compareJson, type JsonChange } from '../lib/json-diff';
+import { isExactNumber } from '../lib/json-exact';
 import './response-diff.css';
 
 export interface ResponseDiffProps {
@@ -76,6 +77,7 @@ function formatValue(value: unknown, maxLength: number): { text: string; truncat
     const work = next.value;
     let token: string;
     if ('text' in work) token = work.text;
+    else if (isExactNumber(work.value)) token = work.value.raw;
     else if (work.value !== null && typeof work.value === 'object') {
       if (work.depth >= 128 || seen.has(work.value)) { truncated = true; break; }
       seen.add(work.value);

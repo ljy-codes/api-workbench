@@ -4,11 +4,12 @@ pub mod engine;
 mod executions;
 pub mod models;
 mod project_files;
+mod report_files;
 mod secrets;
 pub mod store;
 
 use executions::Executions;
-use models::{ExecuteInput, Preview, ResponseData, Workspace};
+use models::{DetailedExecutionResult, ExecuteInput, Preview, RequestOutcome, ResponseData, Workspace};
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -131,6 +132,63 @@ async fn send_request(
     engine::execute(&snapshot, input, running.token.clone()).await
 }
 
+#[tauri::command(async)]
+fn send_request_detailed(
+    state: State<'_, AppState>,
+    input: ExecuteInput,
+) -> impl std::future::Future<Output = DetailedExecutionResult> + Send + 'static {
+    send_request_detailed_inner(state.store.clone(), state.executions.clone(), input)
+}
+
+async fn send_request_detailed_inner(
+    store: Arc<store::Store>,
+    executions: Executions,
+    input: ExecuteInput,
+) -> DetailedExecutionResult {
+    let mut timings = engine::ExecutionTimings::new();
+    timings.start_preparation();
+    let deadline = match timings.deadline(&input) {
+        Ok(deadline) => deadline,
+        Err(error) => return timings.into_detailed(Err(error)),
+    };
+    let running = match executions.start(&input.execution_id) {
+        Ok(running) => running,
+        Err(error) => {
+            let failure = if error == "执行管理器不可用" {
+                engine::ExecutionFailure::new(RequestOutcome::Transport, "执行管理器不可用")
+            } else {
+                engine::ExecutionFailure::new(
+                    RequestOutcome::Validation,
+                    "无法注册执行，请检查执行 ID、重复请求或并发数量",
+                )
+            };
+            return timings.into_detailed(Err(failure));
+        }
+    };
+    let snapshot_input = input.clone();
+    // A queued/blocking snapshot can outlive cancellation, but it is read-only
+    // and never sends HTTP. The losing future cannot proceed to transport.
+    let snapshot = tokio::select! {
+        biased;
+        _ = running.token.cancelled() => Err(engine::ExecutionFailure::cancelled()),
+        result = tokio::time::timeout_at(deadline, tokio::task::spawn_blocking(move || {
+            store.load_for_request(&snapshot_input)
+        })) => match result {
+            Err(_) => Err(engine::ExecutionFailure::timeout()),
+            Ok(Ok(Ok(snapshot))) => Ok(snapshot),
+            _ => Err(engine::ExecutionFailure::new(
+                RequestOutcome::Transport, "加载执行配置失败，请检查本地配置或存储状态",
+            )),
+        },
+    };
+    match snapshot {
+        Ok(snapshot) => engine::execute_detailed_with_timings(
+            &snapshot, input, running.token.clone(), timings,
+        ).await,
+        Err(error) => timings.into_detailed(Err(error)),
+    }
+}
+
 #[tauri::command]
 fn cancel_request(state: State<'_, AppState>, execution_id: String) -> Result<(), String> {
     state.executions.cancel(&execution_id)
@@ -211,6 +269,28 @@ async fn write_project_file(
 }
 
 #[tauri::command]
+async fn write_investigation_report(
+    app: tauri::AppHandle,
+    content: String,
+) -> Result<Option<String>, String> {
+    report_files::validate_content(&content)?;
+    tokio::task::spawn_blocking(move || {
+        let selected = app
+            .dialog()
+            .file()
+            .set_title("保存请求排查报告")
+            .add_filter("HTML 报告", &["html"])
+            .set_file_name("envdock-investigation.html")
+            .blocking_save_file()
+            .map(|selected| selected.into_path().map_err(|_| "保存排查报告失败，请检查文件路径、占用和权限"))
+            .transpose()?;
+        report_files::write_selected(selected, &content)
+    })
+    .await
+    .map_err(|_| "保存排查报告失败，请检查文件路径、占用和权限")?
+}
+
+#[tauri::command]
 async fn export_curl(state: State<'_, AppState>, input: ExecuteInput) -> Result<String, String> {
     let store = state.store.clone();
     tokio::task::spawn_blocking(move || engine::export_curl(&store.load()?, &input))
@@ -277,11 +357,13 @@ pub fn run() {
             compact_storage,
             preview_request,
             send_request,
+            send_request_detailed,
             cancel_request,
             app_info,
             pick_upload_file,
             read_project_file,
             write_project_file,
+            write_investigation_report,
             export_curl,
             backup_workspace
         ])

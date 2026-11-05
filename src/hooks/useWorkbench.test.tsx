@@ -1,6 +1,7 @@
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Preview, ResponseData } from '../types';
+import { RequestExecutionError } from '../lib/request-diagnostics';
 import { demoWorkspace } from '../lib/workspace';
 import { useWorkbench } from './useWorkbench';
 import { api } from '../lib/ipc';
@@ -20,6 +21,80 @@ beforeEach(() => {
 });
 afterEach(cleanup);
 describe('IPC、快照与并发', () => {
+  it('运行期间继续编辑和切换环境，历史仍属于原环境及提交内容', async () => {
+    const pending = deferred<ResponseData>();
+    vi.mocked(api.send).mockReturnValue(pending.promise);
+    const { result } = renderHook(useWorkbench);
+    await waitFor(() => expect(result.current.request).toBeTruthy());
+    act(() => result.current.updateRequest({ bodyType: 'json', body: '{"value":"sent"}' }));
+    let sending!: Promise<void>;
+    act(() => { sending = result.current.execute(); });
+    await waitFor(() => expect(api.send).toHaveBeenCalled());
+    const input = vi.mocked(api.send).mock.calls[0][0];
+    act(() => result.current.updateRequest({ body: '{"value":"edited"}' }));
+    await act(async () => result.current.selectEnvironment('demo-prod'));
+    await act(async () => { pending.resolve(response(input.executionId)); await sending; });
+    expect(result.current.history[0].request.body).toBe('{"value":"sent"}');
+    expect(result.current.history[0].environmentId).toBe('demo-dev');
+    expect(result.current.environment?.id).toBe('demo-prod');
+  });
+  it('恢复前保存失败保留当前草稿和上下文，不覆盖成历史请求', async () => {
+    vi.mocked(api.send).mockImplementation(async input => response(input.executionId));
+    const { result } = renderHook(useWorkbench);
+    await waitFor(() => expect(result.current.request).toBeTruthy());
+    await act(async () => result.current.execute());
+    act(() => result.current.updateRequest({ bodyType: 'text', body: 'unsaved' }));
+    vi.mocked(api.save).mockRejectedValueOnce(new Error('disk-full'));
+    let restored = true;
+    await act(async () => { restored = await result.current.restoreHistory(result.current.history[0].id); });
+    expect(restored).toBe(false);
+    expect(result.current.request?.body).toBe('unsaved');
+    expect(result.current.dirty).toBe(true);
+    expect(result.current.history).toHaveLength(1);
+  });
+  it('时间线绑定发送时快照，记录多次响应，恢复只回填草稿而不发送', async () => {
+    vi.mocked(api.send).mockImplementation(async input => response(input.executionId));
+    const { result } = renderHook(useWorkbench);
+    await waitFor(() => expect(result.current.request).toBeTruthy());
+    act(() => result.current.updateRequest({ bodyType: 'text', body: 'first' }));
+    await act(async () => result.current.execute());
+    act(() => result.current.updateRequest({ body: 'later' }));
+    await act(async () => result.current.execute());
+    expect(result.current.history).toHaveLength(2);
+    expect(result.current.history[1].request.body).toBe('first');
+    expect(result.current.history[0].request.body).toBe('later');
+    await act(async () => result.current.restoreHistory(result.current.history[1].id));
+    expect(result.current.request?.body).toBe('first');
+    expect(result.current.dirty).toBe(true);
+    expect(api.send).toHaveBeenCalledTimes(2);
+  });
+  it('请求进行中清空时间线，晚到响应不会重新添加；新的发送正常记录', async () => {
+    const pending = deferred<ResponseData>();
+    vi.mocked(api.send).mockReturnValue(pending.promise);
+    const { result } = renderHook(useWorkbench);
+    await waitFor(() => expect(result.current.request).toBeTruthy());
+    let sending!: Promise<void>;
+    act(() => { sending = result.current.execute(); });
+    await waitFor(() => expect(api.send).toHaveBeenCalled());
+    const sent = vi.mocked(api.send).mock.calls[0][0];
+    act(() => result.current.clearHistory());
+    await act(async () => { pending.resolve(response(sent.executionId)); await sending; });
+    expect(result.current.history).toHaveLength(0);
+    vi.mocked(api.send).mockImplementation(async input => response(input.executionId));
+    await act(async () => result.current.execute());
+    expect(result.current.history).toHaveLength(1);
+  });
+  it('取消/失败也留下安全诊断，预览不产生时间线', async () => {
+    vi.mocked(api.send).mockRejectedValue(new RequestExecutionError('请求已取消', { outcome: 'cancelled', totalMs: 5 }));
+    const { result } = renderHook(useWorkbench);
+    await waitFor(() => expect(result.current.request).toBeTruthy());
+    await act(async () => result.current.execute(true));
+    expect(result.current.history).toHaveLength(0);
+    await act(async () => result.current.execute());
+    expect(result.current.history[0].diagnostics?.outcome).toBe('cancelled');
+    expect(result.current.history[0].error).toBe('请求已取消');
+    expect(result.current.execution?.diagnostics?.totalMs).toBe(5);
+  });
   it('关闭全部标签先保存一次，保留其他项目标签、草稿和临时变量', async () => {
     const workspace = demoWorkspace();
     workspace.projects.push({ id: 'other-project', name: '其他项目', activeEnvironmentId: null });

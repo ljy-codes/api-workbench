@@ -73,7 +73,7 @@ describe('设置中的第四个主题', () => {
   it('默认深色，选择雾青即时应用并保存，重开设置保持选中', async () => {
     const first = await renderSettings();
     const appearance = within(screen.getByRole('region', { name: '外观设置' }));
-    expect(appearance.getAllByRole('button')).toHaveLength(4);
+    expect(appearance.getAllByRole('button')).toHaveLength(5);
     expect(appearance.getByRole('button', { name: '深色' })).toHaveAttribute('aria-pressed', 'true');
     fireEvent.click(appearance.getByRole('button', { name: '雾青' }));
     expect(appearance.getByRole('button', { name: '雾青' })).toHaveAttribute('aria-pressed', 'true');
@@ -116,6 +116,66 @@ describe('设置中的第四个主题', () => {
   });
 });
 
+describe('暮蓝主题', () => {
+  it('设置可选择暮蓝，重开后仍选中并能切回其他主题', async () => {
+    const first = await renderSettings();
+    fireEvent.click(screen.getByRole('button', { name: '暮蓝' }));
+    expect(screen.getByRole('button', { name: '暮蓝' })).toHaveAttribute('aria-pressed', 'true');
+    expect(document.documentElement.dataset.theme).toBe('dusk');
+    expect(document.documentElement.style.colorScheme).toBe('dark');
+    expect(JSON.parse(localStorage.getItem(storageKey)!).theme).toBe('dusk');
+    first.unmount();
+    await renderSettings();
+    expect(screen.getByRole('button', { name: '暮蓝' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: '浅色' }));
+    expect(document.documentElement.dataset.theme).toBe('light');
+    expect(document.documentElement.style.colorScheme).toBe('light');
+  });
+
+  it('独立覆盖全部语义色，外壳与编辑器都处于中间明度', () => {
+    const rules = Array.from(sheet.sheet!.cssRules).filter((rule): rule is CSSStyleRule => rule.type === CSSRule.STYLE_RULE);
+    const properties = (style: CSSStyleDeclaration) =>
+      Array.from({ length: style.length }, (_, index) => style[index]).filter(name => name.startsWith('--')).sort();
+    const baseline = rules.find(rule => rule.selectorText.includes('data-theme=dark'))!;
+    const dusk = rules.find(rule => rule.selectorText === ':root[data-theme=dusk]');
+    expect(dusk, '缺少独立暮蓝调色板').toBeDefined();
+    expect(properties(dusk!.style)).toEqual(properties(baseline.style));
+    document.documentElement.dataset.theme = 'dusk';
+    expect(getComputedStyle(document.documentElement).colorScheme).toBe('dark');
+    for (const surface of ['--bg', '--panel', '--surface-subtle', '--code-bg']) {
+      const channels = rgb(token(surface));
+      // Midtone slate, with neither the old near-black editor nor white paper.
+      expect(Math.min(...channels), surface).toBeGreaterThanOrEqual(60);
+      expect(Math.max(...channels), surface).toBeLessThanOrEqual(135);
+      expect(channels[2], `${surface} should lean blue`).toBeGreaterThan(channels[1]);
+      document.documentElement.dataset.theme = 'dark';
+      const old = token(surface);
+      document.documentElement.dataset.theme = 'dusk';
+      expect(contrast(token(surface), old), `${surface} must visibly brighten`).toBeGreaterThan(1.7);
+    }
+    expect(new Set(['--bg', '--panel', '--surface-subtle', '--code-bg'].map(token)).size).toBe(4);
+  });
+
+  it('JSON 语法、行号、选区与搜索高亮保持足够对比', () => {
+    document.documentElement.dataset.theme = 'dusk';
+    const syntax = ['--code-key', '--code-string', '--code-number', '--code-literal'];
+    expect(new Set(syntax.map(token)).size).toBe(4);
+    for (const foreground of [...syntax, '--code-text', '--code-gutter', '--code-punctuation']) {
+      for (const background of ['--code-bg', '--code-active-line', '--code-selection']) {
+        expect(contrast(token(foreground), token(background)), `${foreground} / ${background}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+    for (const [foreground, background] of [
+      ['--code-search-text', '--code-search-bg'],
+      ['--success', '--success-bg'], ['--warning', '--warning-bg'], ['--danger', '--danger-bg'],
+      ['--method-get', '--panel'], ['--method-post', '--panel'], ['--method-write', '--panel'],
+    ]) expect(contrast(token(foreground), token(background)), `${foreground} / ${background}`).toBeGreaterThanOrEqual(4.5);
+    for (const background of ['--danger-solid', '--danger-hover']) {
+      expect(contrast('#ffffff', token(background)), background).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+});
+
 describe('雾青实际样式与可读性', () => {
   it('显式覆盖所有已有主题 token，避免继承深色值', () => {
     const rules = Array.from(sheet.sheet!.cssRules).filter((rule): rule is CSSStyleRule => rule.type === CSSRule.STYLE_RULE);
@@ -135,9 +195,9 @@ describe('雾青实际样式与可读性', () => {
     expect(token('--panel')).toBe('#f7f8f4');
     expect(getComputedStyle(document.documentElement).colorScheme).toBe('light');
     document.documentElement.dataset.theme = 'dark';
-    expect(token('--bg')).toBe('#191b22');
+    expect(token('--bg')).toBe('#22262e');
     document.documentElement.dataset.theme = 'light';
-    expect(token('--bg')).toBe('#f3f5f7');
+    expect(token('--bg')).toBe('#eef3f6');
   });
 
   it('正文、提示、导航和按钮在实际表面上的文字对比度至少 4.5:1', () => {
@@ -176,6 +236,56 @@ describe('雾青实际样式与可读性', () => {
     document.documentElement.dataset.theme = 'soft';
     for (const background of ['--bg', '--surface-subtle', '--panel', '--control-bg', '--button-bg', '--accent-soft']) {
       for (const foreground of ['--focus-ring', '--control-border']) {
+        expect(contrast(token(foreground), token(background)), `${foreground} / ${background}`).toBeGreaterThanOrEqual(3);
+      }
+    }
+  });
+});
+
+describe.each(['dark', 'light', 'soft', 'dusk'])('%s 主题的信息层次', theme => {
+  beforeEach(() => { document.documentElement.dataset.theme = theme; });
+
+  it('请求响应底色分别配置，JSON 正文和行号在各自背景上可读', () => {
+    const request = token('--request-code-bg'), response = token('--response-code-bg');
+    expect(request).not.toBe(response);
+    for (const background of [request, response]) {
+      for (const foreground of ['--code-text', '--code-key', '--code-string', '--code-number', '--code-literal', '--code-punctuation']) {
+        expect(contrast(token(foreground), background), `${foreground} / ${background}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+    expect(contrast(token('--code-gutter'), request)).toBeGreaterThanOrEqual(4.5);
+    // The response gutter uses the punctuation token on its slightly deeper surface.
+    expect(contrast(token('--code-punctuation'), response)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  it('四种信息色的文字和背景保持可读，正文能在所有卡片上阅读', () => {
+    const pairs = [
+      ['--tone-blue', '--tone-blue-bg'],
+      ['--tone-teal', '--tone-teal-bg'],
+      ['--tone-amber', '--tone-amber-bg'],
+      ['--tone-violet', '--tone-violet-bg'],
+    ];
+    expect(new Set(pairs.map(([, background]) => token(background))).size).toBe(4);
+    for (const [foreground, background] of pairs) {
+      expect(contrast(token(foreground), token(background)), `${foreground} / ${background}`).toBeGreaterThanOrEqual(4.5);
+      for (const text of ['--text', '--text-secondary', '--muted']) {
+        expect(contrast(token(text), token(background)), `${text} / ${background}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+  });
+
+  it('普通文本、选中状态、主操作和焦点在各主题下都可读', () => {
+    for (const background of ['--bg', '--panel', '--surface-subtle', '--panel-raised', '--button-bg', '--button-hover', '--accent-soft']) {
+      for (const foreground of ['--text', '--text-secondary', '--muted', '--accent']) {
+        expect(contrast(token(foreground), token(background)), `${foreground} / ${background}`).toBeGreaterThanOrEqual(4.5);
+      }
+    }
+    for (const background of ['--primary-bg', '--primary-hover']) {
+      expect(contrast(token('--primary-text'), token(background)), background).toBeGreaterThanOrEqual(4.5);
+    }
+    expect(contrast(token('--selection-text'), token('--accent-soft'))).toBeGreaterThanOrEqual(4.5);
+    for (const foreground of ['--focus-ring', '--control-border']) {
+      for (const background of ['--panel', '--control-bg', '--surface-subtle']) {
         expect(contrast(token(foreground), token(background)), `${foreground} / ${background}`).toBeGreaterThanOrEqual(3);
       }
     }

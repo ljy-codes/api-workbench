@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ExecuteInput, Pair, Preview, RequestDefinition, ResponseData, Workspace } from '../types';
+import type { ExecuteInput, Pair, Preview, RequestDefinition, RequestDiagnostics, RequestHistoryEntry, ResponseData, Workspace } from '../types';
 import type { Confirmation } from '../components/Dialog';
 import { api, desktop } from '../lib/ipc';
 import { demoWorkspace, emptyWorkspace, errorMessage, responseForExecution, uid } from '../lib/workspace';
 import { cleanRequestBodies, executionKey, resolveRequest, updateEnvironmentRequest } from '../lib/environment';
 import { unifyServiceAddresses } from '../lib/service-addresses';
 import type { ImportBundle, TransferSelection } from '../lib/transfer';
+import type { OpenApiPreview } from '../lib/openapi';
+import { appendHistory, historyRequestSnapshot, restoreHistoryDraft } from '../lib/request-history';
+import { executionDiagnostics } from '../lib/request-diagnostics';
 
-export type Execution = { id: string; requestId: string; environment: string; requestName: string; running: boolean; response?: ResponseData; error?: string; cancelRequested?: boolean };
+export type Execution = { id: string; requestId: string; environment: string; requestName: string; running: boolean; response?: ResponseData; error?: string; cancelRequested?: boolean; diagnostics?: RequestDiagnostics };
 export function useWorkbench() {
   const [workspace, setWorkspace] = useState<Workspace>(emptyWorkspace);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -21,12 +24,29 @@ export function useWorkbench() {
   const [executions, setExecutions] = useState<Record<string, Execution>>({});
   const [preview, setPreview] = useState<Preview | null>(null);
   const [temporary, setTemporary] = useState<Record<string, Pair[]>>({});
+  const [history, setHistory] = useState<RequestHistoryEntry[]>([]);
+  const historyRef = useRef<RequestHistoryEntry[]>([]);
+  const historyEpoch = useRef(0);
+  const projectHistoryEpoch = useRef(new Map<string, number>());
   const lock = useRef(false);
   const running = useRef(new Set<string>());
   const wsRef = useRef(workspace);
   const dirtyRef = useRef(false);
   const responseEpoch = useRef(0);
   const executionRef = useRef(executions);
+  const putHistory = (next: RequestHistoryEntry[]) => {
+    historyRef.current = next;
+    setHistory(next);
+  };
+  const clearHistory = (projectId?: string) => {
+    if (projectId) {
+      projectHistoryEpoch.current.set(projectId, (projectHistoryEpoch.current.get(projectId) ?? 0) + 1);
+      putHistory(historyRef.current.filter(entry => entry.projectId !== projectId));
+    } else {
+      historyEpoch.current++;
+      putHistory([]);
+    }
+  };
   const putExecutions = (change: (value: Record<string, Execution>) => Record<string, Execution>) => {
     executionRef.current = change(executionRef.current);
     setExecutions(executionRef.current);
@@ -153,23 +173,56 @@ export function useWorkbench() {
         if (!await confirm({ title: '确认发送到生产环境', message: `${capturedRequest.method} ${prepared.url}\n环境：${prepared.environmentName}。此操作可能修改真实数据，取消请求不代表回滚。`, confirmLabel: '确认生产发送', danger: true })) return;
         input.productionConfirmed = true;
       }
+      const service = wsRef.current.services.find(service => service.id === capturedRequest.serviceId)!;
+      const capturedProject = wsRef.current.projects.find(project => project.id === service.projectId)!;
+      const capturedEpoch = historyEpoch.current;
+      const capturedProjectEpoch = projectHistoryEpoch.current.get(capturedProject.id) ?? 0;
+      const startedAt = Date.now();
+      const historySnapshot = {
+        id: executionId, projectId: capturedProject.id, projectName: capturedProject.name,
+        environmentId, environmentName: prepared.environmentName, serviceName: prepared.serviceName,
+        startedAt, url: prepared.url, request: historyRequestSnapshot(input.request),
+        temporaryVariables: structuredClone(input.temporaryVariables),
+      };
+      let recordedResponse: ResponseData | undefined;
+      let recordedError: string | undefined;
+      let recordedDiagnostics: RequestDiagnostics | undefined;
+      const sendStarted = performance.now();
+      let finishedAt = startedAt;
+      let clientDurationMs = 0;
       running.current.add(key);
       putExecutions(prev => ({ ...prev, [key]: { id: executionId, requestId, environment: prepared.environmentName, requestName: capturedRequest.name, running: true } }));
       lock.current = false; setBusy(false);
       preparationReleased = true;
       try {
         const result = await api.send(input);
+        finishedAt = Date.now();
+        clientDurationMs = Math.round(performance.now() - sendStarted);
         const response = responseForExecution(executionId, result);
         if (!response) throw new Error('响应执行 ID 不匹配，已拒绝显示');
-        putExecutions(prev => prev[key]?.id === executionId ? { ...prev, [key]: { ...prev[key], response } } : prev);
+        recordedResponse = response;
+        recordedDiagnostics = response.diagnostics;
+        putExecutions(prev => prev[key]?.id === executionId ? { ...prev, [key]: { ...prev[key], response, diagnostics: response.diagnostics } } : prev);
         // A request may have been deleted while the network was running.
         if (wsRef.current.requests.some(r => r.id === requestId) && wsRef.current.environments.some(e => e.id === environmentId)) {
           try { await api.saveResponse(requestId, environmentId, response); }
           catch (error) { setNotice(`响应已收到，但本地缓存保存失败：${errorMessage(error)}`); }
         }
       } catch (error) {
-        putExecutions(prev => prev[key]?.id === executionId ? { ...prev, [key]: { ...prev[key], error: errorMessage(error) } } : prev);
+        finishedAt = Date.now();
+        clientDurationMs = Math.round(performance.now() - sendStarted);
+        recordedError = errorMessage(error);
+        recordedDiagnostics = executionDiagnostics(error);
+        putExecutions(prev => prev[key]?.id === executionId ? { ...prev, [key]: { ...prev[key], error: recordedError, diagnostics: recordedDiagnostics } } : prev);
       } finally {
+        if (historyEpoch.current === capturedEpoch && (projectHistoryEpoch.current.get(capturedProject.id) ?? 0) === capturedProjectEpoch) {
+          const next = appendHistory(historyRef.current, {
+            ...historySnapshot, finishedAt, response: recordedResponse, error: recordedError,
+            diagnostics: recordedDiagnostics ?? { outcome: recordedResponse ? 'response' : 'transport', totalMs: clientDurationMs },
+          });
+          if (next === historyRef.current) setNotice('本次记录超过 16 MiB 时间线容量，已跳过；当前响应仍可查看。');
+          else putHistory(next);
+        }
         running.current.delete(key);
         putExecutions(prev => prev[key]?.id === executionId ? { ...prev, [key]: { ...prev[key], running: false } } : prev);
       }
@@ -209,8 +262,21 @@ export function useWorkbench() {
     catch (error) { setNotice(errorMessage(error)); return false; }
     finally { lock.current = false; setBusy(false); }
   };
-  const applyImport = (imported: Workspace) => {
-    const next = unifyServiceAddresses(imported);
+  const restoreHistory = (id: string) => runLocalAction(async () => {
+    const entry = historyRef.current.find(entry => entry.id === id);
+    if (!entry) throw new Error('记录已移除，请重新选择。');
+    // Validate before saving; then rebuild against the revision returned by save.
+    restoreHistoryDraft(wsRef.current, entry);
+    if (dirtyRef.current && desktop) await saveSnapshot(wsRef.current);
+    acceptWorkspace(restoreHistoryDraft(wsRef.current, entry), true);
+    setSelectedId(entry.request.id);
+    setOpenTabs(tabs => tabs.includes(entry.request.id) ? tabs : [...tabs, entry.request.id]);
+    setTemporary(previous => ({ ...previous, [executionKey(entry.request.id, entry.environmentId)]: [] }));
+    setPreview(null);
+    setNotice('已恢复为未发送草稿；方法和路径共用，参数属于原环境。鉴权及敏感参数沿用当前值；变量、服务公共配置使用当前值，文件需重新选择。');
+  });
+  const applyImport = (imported: Workspace, unifyAddresses = true) => {
+    const next = unifyAddresses ? unifyServiceAddresses(imported) : imported;
     const newRequest = next.requests.find(r => !wsRef.current.requests.some(old => old.id === r.id) && next.services.some(s => s.id === r.serviceId && s.projectId === next.activeProjectId));
     acceptWorkspace(next, true); setPreview(null);
     if (newRequest) { setSelectedId(newRequest.id); setOpenTabs(tabs => [...tabs, newRequest.id]); }
@@ -246,6 +312,20 @@ export function useWorkbench() {
   const importSelected = (bundle: ImportBundle, selection: TransferSelection) => runLocalAction(async () => {
     const { importSelection } = await import('../lib/transfer');
     applyImport(importSelection(wsRef.current, bundle, selection));
+  });
+  const applyOpenApi = (plan: OpenApiPreview, selectedKeys: string[]) => runLocalAction(async () => {
+    if (loading) throw new Error('工作区仍在加载，请稍后重新预览');
+    const { applyOpenApiPreview } = await import('../lib/openapi');
+    const next = applyOpenApiPreview(wsRef.current, plan, selectedKeys);
+    // OpenAPI's preview preserves existing projects verbatim; global address
+    // unification could remove an unrelated local variable after confirmation.
+    if (plan.mode === 'new') applyImport(next, false);
+    else {
+      // Keep existing identities, environment variants, selections and local
+      // addresses intact. This is a draft edit, never an IPC save or execution.
+      acceptWorkspace(next, true); setPreview(null);
+      setNotice('已按 OpenAPI 预览补齐所选接口草稿；本地配置与环境覆盖保留，未保存、未发送。');
+    }
   });
   const writeSelected = async (selection: TransferSelection): Promise<boolean | null> => {
     let written = false;
@@ -284,6 +364,7 @@ export function useWorkbench() {
       }
       responseEpoch.current++;
       putExecutions(() => ({}));
+      clearHistory();
       setPreview(null);
       try { await api.compactStorage(); }
       catch (error) { throw new Error(`数据已清理，但空间回收失败，可稍后重试：${errorMessage(error)}`); }
@@ -292,8 +373,10 @@ export function useWorkbench() {
   };
   return {
     workspace, project, environment, request, selectedId, loading, busy, dirty, notice, setNotice,
+    history, clearHistory, restoreHistory,
+    deleteHistory: (id: string) => putHistory(historyRef.current.filter(entry => entry.id !== id)),
     confirmation, setConfirmation, confirm, mutate, updateRequest, save, execute, cancel, preview, load, clearResponse, cleanData,
-    openTabs, closeTab, closeAllTabs, copyCurl: () => execute(false, true), importProjectText, importCurlText, readProject, writeProject, readTransferFile, importSelected, writeSelected, pickFile, backup,
+    openTabs, closeTab, closeAllTabs, copyCurl: () => execute(false, true), importProjectText, importCurlText, readProject, writeProject, readTransferFile, importSelected, applyOpenApi, writeSelected, pickFile, backup,
     hasRunning: Object.values(executions).some(execution => execution.running),
     execution: selectedKey ? executions[selectedKey] : undefined,
     temporary: selectedKey ? temporary[selectedKey] ?? [] : [],

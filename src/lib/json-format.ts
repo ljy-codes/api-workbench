@@ -1,6 +1,7 @@
 export interface JsonFormatOptions {
   removeNull?: boolean;
   compact?: boolean;
+  maxOutputChars?: number;
 }
 
 // Only tolerate a trailing comma after a value, outside strings. Holes ([,]),
@@ -32,7 +33,7 @@ function stripTrailingCommas(source: string): string {
 
 /** Validate with JSON.parse, but format the original tokens so IDs, exact
  * decimals, escape sequences and key order are never rounded or rewritten. */
-export function formatJson(source: string, { removeNull = false, compact = false }: JsonFormatOptions = {}): string {
+export function formatJson(source: string, { removeNull = false, compact = false, maxOutputChars = Infinity }: JsonFormatOptions = {}): string {
   const normalized = stripTrailingCommas(source);
   JSON.parse(normalized);
   let tokens: string[] = normalized.match(/"(?:\\[\s\S]|[^"\\])*"|[{}\[\],:]|[^\s{}\[\],:]+/g)!;
@@ -46,23 +47,32 @@ export function formatJson(source: string, { removeNull = false, compact = false
     }
     tokens = kept;
   }
-  if (compact) return tokens.join('');
   const output: string[] = [];
+  let length = 0;
+  const append = (text: string) => {
+    length += text.length;
+    if (length > maxOutputChars) throw new Error(`JSON 输出超过 ${maxOutputChars} 字符上限，请保留原文或缩小内容。`);
+    output.push(text);
+  };
+  if (compact) {
+    for (const token of tokens) append(token);
+    return output.join('');
+  }
   let depth = 0;
-  const newline = () => output.push('\n', '  '.repeat(depth));
+  const newline = () => append('\n' + '  '.repeat(depth));
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
     if (token === '{' || token === '[') {
-      output.push(token);
+      append(token);
       if (tokens[i + 1] !== '}' && tokens[i + 1] !== ']') {
         if (++depth > 512) throw new Error('JSON 嵌套超过 512 层，请使用压缩一行查看。');
         newline();
       }
     } else if (token === '}' || token === ']') {
       if (tokens[i - 1] !== '{' && tokens[i - 1] !== '[') { depth--; newline(); }
-      output.push(token);
-    } else if (token === ',') { output.push(token); newline(); }
-    else output.push(token === ':' ? ': ' : token);
+      append(token);
+    } else if (token === ',') { append(token); newline(); }
+    else append(token === ':' ? ': ' : token);
   }
   return output.join('');
 }

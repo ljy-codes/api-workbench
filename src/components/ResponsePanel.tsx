@@ -7,6 +7,7 @@ import type { BodyMatch, CodeEditorHandle } from './CodeEditor';
 import { formatBytes } from '../lib/workspace';
 import { jsonNodeAt, jsonRange, type JsonPath, type JsonRange } from '../lib/json-inspection';
 import { JsonInspector } from './JsonInspector';
+import { RequestDiagnosticsPanel } from './RequestDiagnosticsPanel';
 
 const CodeEditor = lazy(() => import('./CodeEditor'));
 const JsonArrayTable = lazy(() => import('./JsonArrayTable').then(module => ({ default: module.JsonArrayTable })));
@@ -62,23 +63,12 @@ export function ResponsePanel({ execution, onClear, baseline, onSaveBaseline, on
       event.preventDefault(); openSearch();
     } else if (event.key === 'Escape' && searchOpen) { event.preventDefault(); closeSearch(); }
   }}>
-    <header className="response-heading">
+    <header className="response-heading response-toolbar">
       <div className="response-title">
         {response ? <div className="response-metrics"><span className={response.status < 400 ? 'success-badge' : 'error-badge'}>{response.status} {response.statusText}</span><span><Clock3 size={12} />{response.durationMs} ms</span><span>已接收 {formatBytes(response.sizeBytes)}</span></div> : <strong>响应</strong>}
         {execution?.running && <span className="muted"><LoaderCircle className="spin" size={13} />请求进行中</span>}
       </div>
-      <div className="response-heading-actions">
-        {execution && <span className="response-environment ellipsis" title="本次响应的执行环境">{response?.environmentName ?? execution.environment}</span>}
-        {execution && <button type="button" className="icon-button" aria-label="执行详情" title="执行详情" aria-expanded={detailsOpen} onClick={() => setDetailsOpen(open => !open)}><Info size={14} /></button>}
-        {onClear && <button type="button" className="icon-button" aria-label="清除当前响应" title="清除当前接口在当前环境的响应" disabled={!execution || execution.running} onClick={onClear}><Trash2 size={14} /></button>}
-      </div>
-    </header>
-    {execution && detailsOpen && <dl className="execution-context"><dt>接口</dt><dd>{execution.requestName}</dd><dt>执行 ID</dt><dd><code>{execution.id}</code></dd>{response && <><dt>地址</dt><dd><code>{response.url}</code></dd></>}</dl>}
-    {execution?.cancelRequested && <p className="warning-line">已请求取消；服务端可能仍在执行，此操作不代表回滚。</p>}
-    {execution?.error && <div className="error-box" role="alert"><strong>请求未完成</strong><p>{execution.error}</p></div>}
-    {!response && !execution?.error && <div className="response-empty"><div className="empty-icon"><Braces size={26} /></div><h3>{execution?.running ? '正在等待响应' : '响应将在这里呈现'}</h3><p>{execution?.running ? '可以继续查看其他接口，结果始终归属本次执行。' : '配置环境与接口，在桌面版发送你的第一个请求。'}</p>{!execution && <span className="shortcut-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> 发送请求</span>}</div>}
-    {response && <>
-      <div className="response-toolbar">
+      {response && <>
         <div role="tablist" aria-label="响应内容">
           <button role="tab" aria-selected={tab === 'body'} onClick={() => setTab('body')}>正文</button>
           <button role="tab" aria-selected={tab === 'headers'} onClick={() => setTab('headers')}>Headers <small>{response.headers.length}</small></button>
@@ -97,7 +87,19 @@ export function ResponsePanel({ execution, onClear, baseline, onSaveBaseline, on
           <button className="icon-button" aria-label="查找响应正文" title="查找 · Ctrl/Cmd+F" aria-expanded={searchOpen && showCode} onClick={() => { if (searchOpen && showCode) closeSearch(); else openSearch(); }}><Search size={14} /></button>
           <button className="icon-button" aria-label="复制响应正文" title="复制原始响应正文" onClick={async () => { try { await navigator.clipboard.writeText(response.body); setCopied(true); setCopyError(''); } catch { setCopyError('复制失败，请手动选择正文复制。'); } }}>{copied ? <Check size={14} /> : <Copy size={14} />}</button>
         </div>}
+      </>}
+      <div className="response-heading-actions">
+        {execution && <span className="response-environment ellipsis" title={`本次响应的执行环境：${response?.environmentName ?? execution.environment}`}>{response?.environmentName ?? execution.environment}</span>}
+        {execution && <button type="button" className="icon-button" aria-label="执行详情" title="执行详情" aria-expanded={detailsOpen} onClick={() => setDetailsOpen(open => !open)}><Info size={14} /></button>}
+        {onClear && <button type="button" className="icon-button" aria-label="清除当前响应" title="清除当前接口在当前环境的响应" disabled={!execution || execution.running} onClick={onClear}><Trash2 size={14} /></button>}
       </div>
+    </header>
+    {execution && detailsOpen && <dl className="execution-context"><dt>接口</dt><dd>{execution.requestName}</dd><dt>执行 ID</dt><dd><code>{execution.id}</code></dd>{response && <><dt>地址</dt><dd><code>{response.url}</code></dd></>}</dl>}
+    {execution && detailsOpen && <RequestDiagnosticsPanel diagnostics={execution.diagnostics ?? response?.diagnostics} />}
+    {execution?.cancelRequested && <p className="warning-line">已请求取消；服务端可能仍在执行，此操作不代表回滚。</p>}
+    {execution?.error && <div className="error-box" role="alert"><strong>请求未完成</strong><p>{execution.error}</p></div>}
+    {!response && !execution?.error && <div className="response-empty"><div className="empty-icon"><Braces size={26} /></div><h3>{execution?.running ? '正在等待响应' : '响应将在这里呈现'}</h3><p>{execution?.running ? '可以继续查看其他接口，结果始终归属本次执行。' : '配置环境与接口，在桌面版发送你的第一个请求。'}</p>{!execution && <span className="shortcut-hint"><kbd>Ctrl</kbd> + <kbd>Enter</kbd> 发送请求</span>}</div>}
+    {response && <>
       {response.truncated && <p className="warning-line">响应不完整：超过接收上限，已停止接收。以下仅为已接收内容，大小不代表完整响应。</p>}
       {document.notice && <p className="warning-line">{document.notice}</p>}
       {copyError && <p role="alert">{copyError}</p>}

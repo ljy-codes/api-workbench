@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import '@testing-library/jest-dom/vitest';
 import { afterEach, expect, it } from 'vitest';
 import { ResponseDiff } from './ResponseDiff';
+import { parseExactJson } from '../lib/json-exact';
 
 afterEach(cleanup);
 
@@ -136,4 +137,17 @@ it('shows equality only after a complete comparison and treats null as valid JSO
   render(<ResponseDiff baseline={null} current={null} />);
   expect(screen.getByText(/未发现差异/)).toBeTruthy();
   expect(screen.queryByRole('alert')).toBeNull();
+});
+
+it('displays exact numeric tokens rather than their internal representation, including added subtrees', () => {
+  render(<ResponseDiff
+    baseline={parseExactJson('{"id":9223372036854775807,"amount":0.12345678901234567890}')}
+    current={parseExactJson('{"id":9223372036854775808,"amount":0.12345678901234567891,"added":{"n":9007199254740993}}')}
+  />);
+  const list = screen.getByRole('list', { name: 'JSON 差异' });
+  expect(within(list).getByText('9223372036854775807')).toBeTruthy();
+  expect(within(list).getByText('9223372036854775808')).toBeTruthy();
+  expect(within(list).getByText('0.12345678901234567891')).toBeTruthy();
+  expect(within(list).getByText('{"n":9007199254740993}')).toBeTruthy();
+  expect(list.textContent).not.toContain('canonical');
 });

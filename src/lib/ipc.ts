@@ -1,5 +1,6 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { ExecuteInput, Preview, ResponseData, Workspace } from '../types';
+import type { DetailedExecutionResult, ExecuteInput, Preview, ResponseData, Workspace } from '../types';
+import { RequestExecutionError } from './request-diagnostics';
 
 export const desktop = isTauri();
 function call<T>(command: string, args?: Record<string, unknown>): Promise<T> {
@@ -10,11 +11,16 @@ export const api = {
   load: () => call<Workspace>('load_workspace'),
   save: (workspace: Workspace) => call<Workspace>('save_workspace', { workspace }),
   preview: (input: ExecuteInput) => call<Preview>('preview_request', { input }),
-  send: (input: ExecuteInput) => call<ResponseData>('send_request', { input }),
+  send: async (input: ExecuteInput): Promise<ResponseData> => {
+    const result = await call<DetailedExecutionResult>('send_request_detailed', { input });
+    if (result.response) return result.response;
+    throw new RequestExecutionError(result.error ?? '请求未完成', result.diagnostics);
+  },
   cancel: (executionId: string) => call<void>('cancel_request', { executionId }),
   pickFile: () => call<string | null>('pick_upload_file'),
   readProjectFile: () => call<string | null>('read_project_file'),
   writeProjectFile: (content: string) => call<string | null>('write_project_file', { content }),
+  writeInvestigationReport: (content: string) => call<string | null>('write_investigation_report', { content }),
   exportCurl: (input: ExecuteInput) => call<string>('export_curl', { input }),
   backup: () => call<string>('backup_workspace'),
   loadResponse: (requestId: string, environmentId: string) => call<ResponseData | null>('load_response', { requestId, environmentId }),

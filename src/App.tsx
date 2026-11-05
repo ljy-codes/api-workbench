@@ -1,6 +1,6 @@
-import { lazy, Suspense, useEffect, useState, type CSSProperties } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState, type CSSProperties } from 'react';
 import { version } from '../package.json';
-import { Braces, ChevronRight, Columns2, Command, Database, FileJson2, FlaskConical, LayoutGrid, Layers3, PanelLeftClose, PanelLeftOpen, Rows2, Save, Settings, Settings2, ShieldCheck, X } from 'lucide-react';
+import { Braces, ChevronRight, Columns2, Command, Database, FileJson2, FlaskConical, History, LayoutGrid, Layers3, PanelLeftClose, PanelLeftOpen, Rows2, Save, Settings, Settings2, ShieldCheck, Wrench, X } from 'lucide-react';
 import { useWorkbench } from './hooks/useWorkbench';
 import { useNativeClose } from './hooks/useNativeClose';
 import { desktop } from './lib/ipc';
@@ -23,6 +23,8 @@ import { useResponseBaselines } from './hooks/useResponseBaselines';
 
 const SettingsPanel = lazy(() => import('./components/SettingsPanel'));
 const JsonToolsDialog = lazy(() => import('./components/JsonToolsDialog'));
+const DevToolsDialog = lazy(() => import('./components/DevToolsDialog'));
+const RequestHistoryDialog = lazy(() => import('./components/RequestHistoryDialog'));
 
 type Page = 'home' | 'requests' | 'environments' | 'variables' | 'manage';
 export default function App() {
@@ -30,6 +32,18 @@ export default function App() {
   const [page, setPage] = useState<Page>('requests');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [jsonToolsOpen, setJsonToolsOpen] = useState(false);
+  const [devToolsOpen, setDevToolsOpen] = useState(false);
+  const devToolsButton = useRef<HTMLButtonElement>(null);
+  const closeDevTools = () => {
+    setDevToolsOpen(false);
+    requestAnimationFrame(() => devToolsButton.current?.focus());
+  };
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const historyButton = useRef<HTMLButtonElement>(null);
+  const closeHistory = () => {
+    setHistoryOpen(false);
+    requestAnimationFrame(() => historyButton.current?.focus());
+  };
   const [creation, setCreation] = useState<EntityEditTarget | null>(null);
   const { preferences, updatePreferences } = usePreferences();
   const { baseline, saveBaseline, clearBaseline } = useResponseBaselines(JSON.stringify([model.request?.id, model.environment?.id]));
@@ -44,18 +58,18 @@ export default function App() {
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
         event.preventDefault();
         event.stopPropagation();
-        if (!event.repeat && !event.isComposing && !jsonToolsOpen && !document.querySelector('dialog[open]') && !model.confirmation && !model.busy && !model.loading && desktop) void model.save();
+        if (!event.repeat && !event.isComposing && !jsonToolsOpen && !devToolsOpen && !historyOpen && !document.querySelector('dialog[open]') && !model.confirmation && !model.busy && !model.loading && desktop) void model.save();
         return;
       }
       if ((event.ctrlKey || event.metaKey) && event.key === 'Enter' && !event.isComposing) {
         event.preventDefault();
         event.stopPropagation();
-        if (!event.repeat && !jsonToolsOpen && !document.querySelector('dialog[open]') && page === 'requests') void model.execute();
+        if (!event.repeat && !jsonToolsOpen && !devToolsOpen && !historyOpen && !document.querySelector('dialog[open]') && page === 'requests') void model.execute();
       }
     };
     window.addEventListener('keydown', handler, true);
     return () => window.removeEventListener('keydown', handler, true);
-  }, [model, page, jsonToolsOpen]);
+  }, [model, page, jsonToolsOpen, devToolsOpen, historyOpen]);
   const nav = [
     { page: 'requests' as const, label: '接口工作台', Icon: Layers3 },
     { page: 'environments' as const, label: '环境矩阵', Icon: LayoutGrid },
@@ -65,7 +79,7 @@ export default function App() {
   const hasProjects = model.workspace.projects.length > 0;
   const openRequest = (id: string) => { model.selectRequest(id); setPage('requests'); };
   return <div className="app-shell">
-    <nav className="rail" aria-label="主导航"><button className="brand-mark" aria-label="返回主页" title="主页 · 项目仪表盘" aria-current={page === 'home' ? 'page' : undefined} onClick={() => setPage('home')}><img src="/envdock.svg" alt="EnvDock" width={34} height={34} /></button><div className="rail-nav">{nav.map(({ page: target, label, Icon }) => <button className={`rail-button ${page === target ? 'active' : ''}`} data-page={target} aria-label={label} title={label} aria-current={page === target ? 'page' : undefined} onClick={() => setPage(target)} key={target}><Icon size={20} /></button>)}<button className="rail-button" aria-label="JSON 工具" title="JSON 工具 · 临时格式化与搜索" aria-haspopup="dialog" aria-expanded={jsonToolsOpen} onClick={() => setJsonToolsOpen(true)}><FileJson2 size={20} /></button></div><div className="rail-settings"><button className="rail-button" aria-label="设置" title="设置" onClick={() => setSettingsOpen(true)}><Settings size={19} /></button><span title="原生执行 · 本地数据"><ShieldCheck size={16} /></span></div></nav>
+    <nav className="rail" aria-label="主导航"><button className="brand-mark" aria-label="返回主页" title="主页 · 项目仪表盘" aria-current={page === 'home' ? 'page' : undefined} onClick={() => setPage('home')}><img src="/envdock.svg" alt="EnvDock" width={34} height={34} /></button><div className="rail-nav">{nav.map(({ page: target, label, Icon }) => <button className={`rail-button ${page === target ? 'active' : ''}`} data-page={target} aria-label={label} title={label} aria-current={page === target ? 'page' : undefined} onClick={() => setPage(target)} key={target}><Icon size={20} /></button>)}<button className="rail-button" ref={historyButton} aria-label="请求时间线" title="请求时间线 · 查看、对比、恢复与排查包" aria-haspopup="dialog" aria-expanded={historyOpen} onClick={() => setHistoryOpen(true)}><History size={20} /></button><button className="rail-button" aria-label="JSON 工具" title="JSON 工具 · 临时格式化与搜索" aria-haspopup="dialog" aria-expanded={jsonToolsOpen} onClick={() => setJsonToolsOpen(true)}><FileJson2 size={20} /></button><button className="rail-button" ref={devToolsButton} aria-label="临时开发工具箱" title="临时开发工具箱 · URL、Base64、时间戳、JWT" aria-haspopup="dialog" aria-expanded={devToolsOpen} onClick={() => setDevToolsOpen(true)}><Wrench size={20} /></button></div><div className="rail-settings"><button className="rail-button" aria-label="设置" title="设置" onClick={() => setSettingsOpen(true)}><Settings size={19} /></button><span title="原生执行 · 本地数据"><ShieldCheck size={16} /></span></div></nav>
     <div className="app-main">
       <header className="topbar">
         <div className="brand-title">EnvDock<span className="version-label">{version}</span></div><span className="topbar-divider" />
@@ -93,6 +107,13 @@ export default function App() {
     {model.notice && <div className="toast" role="status"><span>{model.notice}</span><button className="icon-button" aria-label="关闭通知" onClick={() => model.setNotice('')}><X size={15} /></button>{desktop && !hasProjects && <button onClick={() => void model.load()}>重新加载</button>}</div>}
     {settingsOpen && <Suspense fallback={null}><SettingsPanel model={model} preferences={preferences} updatePreferences={updatePreferences} onClose={() => setSettingsOpen(false)} /></Suspense>}
     {jsonToolsOpen && <Suspense fallback={null}><JsonToolsDialog onClose={() => setJsonToolsOpen(false)} /></Suspense>}
+    {devToolsOpen && <Suspense fallback={null}><DevToolsDialog onClose={closeDevTools}
+      onOpenJson={() => { setDevToolsOpen(false); setJsonToolsOpen(true); }} /></Suspense>}
+    {historyOpen && <Suspense fallback={null}><RequestHistoryDialog key={model.project?.id ?? 'none'}
+      entries={model.history.filter(entry => entry.projectId === model.project?.id)} projectName={model.project?.name}
+      busy={model.busy} onClose={closeHistory}
+      onRestore={async id => { const restored = await model.restoreHistory(id); if (restored) setPage('requests'); return restored; }}
+      onDelete={model.deleteHistory} onClear={() => model.clearHistory(model.project?.id)} /></Suspense>}
     {creation && <EntityEditor model={model} target={creation} onClose={() => setCreation(null)} />}
     {model.confirmation && <ConfirmDialog value={model.confirmation} close={() => model.setConfirmation(null)} />}
   </div>;

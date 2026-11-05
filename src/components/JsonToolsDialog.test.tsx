@@ -76,3 +76,17 @@ it('工具处理与搜索全程不写存储或网络，清空也移除编辑器�
   expect(storage).not.toHaveBeenCalled();
   expect(fetchSpy).not.toHaveBeenCalled();
 });
+
+it('提供四个工具页签，切换后保留当前窗口的格式化原文并支持键盘切换', async () => {
+  const source = '{"id":9223372036854775807}';
+  const view = await openTool(source);
+  expect(screen.getByRole('tab', { name: '格式化' }).getAttribute('aria-selected')).toBe('true');
+  fireEvent.click(screen.getByRole('tab', { name: '字段提取' }));
+  expect(await screen.findByRole('textbox', { name: '提取路径' })).toBeTruthy();
+  expect(view.state.doc.toString()).toBe(source);
+  fireEvent.click(screen.getByRole('tab', { name: '格式化' }));
+  expect(EditorView.findFromDOM(screen.getByLabelText('临时 JSON 内容'))).toBe(view);
+  fireEvent.keyDown(screen.getByRole('tab', { name: '格式化' }), { key: 'ArrowRight' });
+  expect(screen.getByRole('tab', { name: '双栏对比' }).getAttribute('aria-selected')).toBe('true');
+  expect(await screen.findByLabelText('左侧 JSON')).toBeTruthy();
+});

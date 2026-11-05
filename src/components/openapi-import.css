@@ -1,0 +1,45 @@
+.openapi-import-dialog[open] { display: flex; flex-direction: column; max-height: 90dvh; }
+.openapi-import-dialog > .dialog-header,
+.openapi-import-dialog .dialog-footer { flex-shrink: 0; }
+.openapi-import-dialog > form { display: flex; flex-direction: column; min-height: 0; }
+.openapi-import-dialog .form-fields { min-height: 0; overflow-y: auto; gap: 16px; }
+.openapi-import-dialog .form-fields > * { flex-shrink: 0; }
+.openapi-import-dialog .openapi-targets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+.openapi-import-dialog .openapi-targets > label { display: flex; flex-direction: column; gap: 8px; color: var(--text-secondary); font-size: 12px; }
+.openapi-import-dialog textarea { width: 100%; font-family: var(--font-mono, monospace); resize: vertical; }
+.openapi-import-dialog .openapi-policy,
+.openapi-import-dialog .openapi-warnings {
+  padding: 12px;
+  border: 1px solid var(--border, currentColor);
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.openapi-import-dialog .openapi-policy p { margin: 0; }
+.openapi-import-dialog .openapi-policy { background: var(--tone-blue-bg); color: var(--tone-blue); }
+.openapi-import-dialog .openapi-warnings { background: var(--surface-subtle); }
+.openapi-import-dialog summary { cursor: pointer; }
+.openapi-import-dialog .openapi-selection { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13px; }
+.openapi-import-dialog .openapi-rows { list-style: none; margin: 0; padding: 0; max-height: 38vh; overflow: auto; }
+.openapi-import-dialog .openapi-rows li { padding: 12px 4px; border-bottom: 1px solid var(--border, currentColor); }
+.openapi-import-dialog .openapi-row-title { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; cursor: pointer; }
+.openapi-import-dialog .openapi-row-title input { width: 16px; height: 16px; margin: 0; flex: 0 0 auto; }
+.openapi-import-dialog .openapi-row-title code { overflow-wrap: anywhere; min-width: 0; }
+.openapi-import-dialog .openapi-status { font-size: 12px; font-weight: 600; padding: 3px 7px; border-radius: 4px; }
+.openapi-import-dialog .openapi-status-added { color: var(--tone-teal); background: var(--tone-teal-bg); }
+.openapi-import-dialog .openapi-status-changed { color: var(--tone-blue); background: var(--tone-blue-bg); }
+.openapi-import-dialog .openapi-status-removed { color: var(--tone-amber); background: var(--tone-amber-bg); }
+.openapi-import-dialog .openapi-status-unchanged { color: var(--text-secondary); background: var(--surface-subtle); }
+.openapi-import-dialog .openapi-status-blocked { color: var(--danger); background: var(--danger-bg); }
+.openapi-import-dialog .openapi-update,
+.openapi-import-dialog .openapi-note { margin: 6px 0 0 26px; font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+.openapi-import-dialog .openapi-note { color: var(--text-secondary); }
+@media (max-width: 760px) {
+  .openapi-import-dialog .form-fields { padding: 16px; }
+  .openapi-import-dialog .dialog-footer { padding: 14px 16px; flex-wrap: wrap; }
+}

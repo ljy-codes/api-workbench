@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { compareJson } from './json-diff';
+import { ExactNumber, parseExactJson, stringifyExactJson } from './json-exact';
 
 describe('compareJson', () => {
   it('reports additions, removals and scalar changes without mutating either input', () => {
@@ -175,5 +176,58 @@ describe('compareJson', () => {
     expect(compareJson(1, 2, { maxNodes: NaN, maxChanges: Infinity })).toEqual({
       changes: [{ path: '$', kind: 'changed', before: 1, after: 2 }], truncated: false,
     });
+  });
+});
+
+describe('compareJson with exact numbers', () => {
+  it('compares equivalent numeric spellings by value and keeps exact numbers scalar', () => {
+    expect(compareJson(parseExactJson('[1,1.0,-0,1e400]'), parseExactJson('[1e0,1,0,10e399]')))
+      .toEqual({ changes: [], truncated: false });
+    const before = new ExactNumber('9223372036854775807');
+    const after = new ExactNumber('9223372036854775808');
+    expect(compareJson({ number: before }, { number: after })).toEqual({
+      changes: [{ path: '$.number', kind: 'changed', before, after }], truncated: false,
+    });
+    expect(compareJson(before, { raw: before.raw, canonical: before.canonical }).changes)
+      .toEqual([{ path: '$', kind: 'changed', before, after: { raw: before.raw, canonical: before.canonical } }]);
+  });
+
+  it('does not collapse adjacent long integers, fine decimals or numeric/string types', () => {
+    const before = parseExactJson('[9223372036854775807,1.0000000000000000001,1]');
+    const after = parseExactJson('[9223372036854775808,1.0000000000000000002,"1"]');
+    expect(compareJson(before, after).changes.map(change => change.path)).toEqual(['$[0]', '$[1]', '$[2]']);
+  });
+
+  it('pairs exact numeric ids by canonical value while separating string ids and long adjacent ids', () => {
+    const before = parseExactJson('[{"id":1,"v":"num"},{"id":"1","v":"str"},{"id":9223372036854775807,"v":"a"},{"id":9223372036854775808,"v":"b"}]');
+    const after = parseExactJson('[{"id":9223372036854775808,"v":"b"},{"id":"1","v":"str"},{"id":1.0,"v":"num"},{"id":9223372036854775807,"v":"changed"}]');
+    expect(compareJson(before, after, { matchById: true })).toEqual({
+      changes: [{ path: '$[3].v', kind: 'changed', before: 'a', after: 'changed' }], truncated: false,
+    });
+  });
+
+  it('falls back to indexes for duplicate ids that differ only in numeric spelling', () => {
+    const before = parseExactJson('[{"id":1,"v":"a"},{"id":1.0,"v":"b"}]');
+    const after = parseExactJson('[{"id":1,"v":"b"},{"id":1e0,"v":"a"}]');
+    expect(compareJson(before, after, { matchById: true })).toEqual(compareJson(before, after));
+    expect(compareJson(before, after).changes.map(change => change.path)).toEqual(['$[0].v', '$[1].v']);
+  });
+
+  it('compares exact numbers to finite native numbers without changing native-only comparisons', () => {
+    expect(compareJson(new ExactNumber('1.0'), 1)).toEqual({ changes: [], truncated: false });
+    expect(compareJson(-0, 0).changes).toHaveLength(1);
+    expect(compareJson(new ExactNumber('0'), Infinity).changes).toHaveLength(1);
+    expect(compareJson([{ id: new ExactNumber('1') }], [{ id: 1 }], { matchById: true }))
+      .toEqual({ changes: [], truncated: false });
+  });
+
+  it('retains input text, special own keys and existing node limits', () => {
+    const source = '{"2":9223372036854775807,"1":2,"__proto__":{"x":1},"constructor":3}';
+    const before = parseExactJson(source);
+    const after = parseExactJson('{"2":9223372036854775808,"1":2,"__proto__":{"x":2},"constructor":3}');
+    expect(compareJson(before, after).changes.map(change => change.path)).toEqual(['$["2"]', '$.__proto__.x']);
+    expect(stringifyExactJson(before, true)).toBe(source);
+    expect(compareJson(before, after, { maxNodes: 1 })).toEqual({ changes: [], truncated: true });
+    expect(Object.hasOwn(Object.prototype, 'x')).toBe(false);
   });
 });

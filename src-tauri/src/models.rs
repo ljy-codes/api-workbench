@@ -177,4 +177,47 @@ pub struct ResponseData {
     pub truncated: bool,
     pub environment_name: String,
     pub url: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub diagnostics: Option<RequestDiagnostics>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum RequestOutcome {
+    Response,
+    Timeout,
+    Cancelled,
+    Connection,
+    Body,
+    Validation,
+    Transport,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct RequestDiagnostics {
+    pub outcome: RequestOutcome,
+    pub total_ms: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub preparation_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub headers_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub download_ms: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub remote_address: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub http_version: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub received_bytes: Option<u64>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DetailedExecutionResult {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response: Option<ResponseData>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+    pub diagnostics: RequestDiagnostics,
 }

@@ -178,6 +178,7 @@ fn response(body: &str) -> ResponseData {
         truncated: false,
         environment_name: "A".into(),
         url: "http://127.0.0.1".into(),
+        diagnostics: None,
     }
 }
 
@@ -430,10 +431,11 @@ fn deleting_one_request_keeps_other_cache_and_clear_compact_reclaims_disk() {
 }
 
 #[test]
-fn release_native_versions_are_1_1_0() {
-    assert_eq!(env!("CARGO_PKG_VERSION"), "1.1.0");
+fn release_native_versions_match_frontend_package() {
+    let package: Value = serde_json::from_str(include_str!("../../../package.json")).unwrap();
+    assert_eq!(package["version"], env!("CARGO_PKG_VERSION"));
     let config: Value = serde_json::from_str(include_str!("../../tauri.conf.json")).unwrap();
-    assert_eq!(config["version"], "1.1.0");
+    assert_eq!(config["version"], package["version"]);
 }
 
 #[test]

@@ -28,5 +28,28 @@ export interface Preview { url: string; environmentName: string; serviceName: st
 export interface ResponseData {
   executionId: string; status: number; statusText: string; durationMs: number; sizeBytes: number;
   headers: Pair[]; body: string; truncated: boolean; environmentName: string; url: string;
+  diagnostics?: RequestDiagnostics;
+}
+export interface RequestDiagnostics {
+  outcome: 'response' | 'timeout' | 'cancelled' | 'connection' | 'body' | 'validation' | 'transport';
+  totalMs: number;
+  preparationMs?: number;
+  headersMs?: number;
+  downloadMs?: number;
+  remoteAddress?: string;
+  httpVersion?: string;
+  receivedBytes?: number;
+}
+export interface DetailedExecutionResult {
+  response?: ResponseData | null;
+  error?: string | null;
+  diagnostics: RequestDiagnostics;
+}
+export interface RequestHistoryEntry {
+  id: string; projectId: string; projectName: string;
+  environmentId: string; environmentName: string; serviceName: string;
+  startedAt: number; finishedAt: number; url: string;
+  request: RequestDefinition; temporaryVariables: Pair[];
+  response?: ResponseData; error?: string; diagnostics?: RequestDiagnostics;
 }
 export interface AppInfo { dataDir: string; version: string; portable: boolean }

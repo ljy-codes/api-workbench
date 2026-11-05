@@ -3,6 +3,8 @@ use serde_json::json;
 use tauri::test::{mock_builder, mock_context, noop_assets};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+mod diagnostics;
+
 // Exercise the same Tauri command function as the UI, not only the store API.
 #[tokio::test]
 async fn send_command_ignores_unrelated_corrupt_secret() {

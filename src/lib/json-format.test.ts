@@ -26,6 +26,13 @@ describe('JSON 格式化', () => {
     expect(formatJson('{"id":9223372036854775807,"drop":null,}', { removeNull: true, compact: true })).toBe('{"id":9223372036854775807}');
   });
 
+  it('可选输出预算在展开与压缩时均生效，恰好等于上限仍可完整返回', () => {
+    expect(formatJson('[1]', { maxOutputChars: 7 })).toBe('[\n  1\n]');
+    expect(() => formatJson('[1]', { maxOutputChars: 6 })).toThrow(/6/);
+    expect(formatJson('[1]', { compact: true, maxOutputChars: 3 })).toBe('[1]');
+    expect(() => formatJson('[1]', { compact: true, maxOutputChars: 2 })).toThrow(/2/);
+  });
+
   it.each(['[,]', '{,}', '[1,,]', '{"a":1,,}', '{"a":,}', '{"a":1 "b":2}', '{"a":undefined}', '{/*comment*/"a":1}', '{"a":"unterminated}', ''])('拒绝不明确的错误，不猜测修复内容：%s', source => {
     expect(() => formatJson(source)).toThrow();
   });

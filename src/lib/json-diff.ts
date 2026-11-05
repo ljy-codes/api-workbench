@@ -1,4 +1,5 @@
 import { formatJsonPath, parseJsonPath } from './json-inspection';
+import { ExactNumber, isExactNumber } from './json-exact';
 
 export interface JsonChange {
   path: string;
@@ -18,7 +19,7 @@ const DEFAULT_MAX_CHANGES = 1000;
 const DEFAULT_MAX_NODES = 20_000;
 
 type JsonObject = Record<string, unknown>;
-type Id = string | number;
+type Id = string;
 interface Visit {
   path: string;
   key?: string;
@@ -29,7 +30,13 @@ interface Visit {
 }
 
 function isObject(value: unknown): value is JsonObject {
-  return value !== null && typeof value === 'object' && !Array.isArray(value);
+  return value !== null && typeof value === 'object' && !Array.isArray(value) && !isExactNumber(value);
+}
+
+function numericCanonical(value: unknown): string | undefined {
+  if (isExactNumber(value)) return value.canonical;
+  return typeof value === 'number' && Number.isFinite(value)
+    ? new ExactNumber(String(value)).canonical : undefined;
 }
 
 function propertyPath(parent: string, key: string): string {
@@ -112,9 +119,11 @@ export function compareJson(
       if (!consumeNode()) return undefined;
       const item = items[index];
       if (!isObject(item) || !Object.hasOwn(item, 'id')) return undefined;
-      const id = item.id;
-      if ((typeof id !== 'string' && typeof id !== 'number')
-        || (typeof id === 'number' && !Number.isFinite(id)) || ids.has(id)) return undefined;
+      const rawId = item.id;
+      const numericId = numericCanonical(rawId);
+      const id = typeof rawId === 'string' ? `string:${rawId}`
+        : numericId === undefined ? undefined : `number:${numericId}`;
+      if (id === undefined || ids.has(id)) return undefined;
       ids.set(id, index);
     }
     return ids;
@@ -134,6 +143,11 @@ export function compareJson(
     if (!beforeExists) change = { path, kind: 'added', after };
     else if (!afterExists) change = { path, kind: 'removed', before };
     else if (Object.is(before, after)) continue;
+    else if (isExactNumber(before) || isExactNumber(after)) {
+      const canonical = numericCanonical(before);
+      if (canonical !== undefined && canonical === numericCanonical(after)) continue;
+      change = { path, kind: 'changed', before, after };
+    }
     else if (Array.isArray(before) && Array.isArray(after)) {
       let beforeIds: Map<Id, number> | undefined;
       let afterIds: Map<Id, number> | undefined;

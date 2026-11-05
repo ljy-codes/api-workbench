@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
 import type { Workbench } from '../hooks/useWorkbench';
 import type { ImportBundle, TransferSelection } from '../lib/transfer';
@@ -7,7 +7,10 @@ import { errorMessage } from '../lib/workspace';
 import { Dialog } from './Dialog';
 import { allSelected, TransferTree } from './TransferTree';
 
+const OpenApiImportDialog = lazy(() => import('./OpenApiImportDialog').then(module => ({ default: module.OpenApiImportDialog })));
+
 export function ExchangePanel({ model }: { model: Workbench }) {
+  const [openApiOpen, setOpenApiOpen] = useState(false);
   const [mode, setMode] = useState<'project' | 'curl' | 'export' | null>(null);
   const [text, setText] = useState('');
   const [serviceName, setServiceName] = useState('');
@@ -18,7 +21,7 @@ export function ExchangePanel({ model }: { model: Workbench }) {
   const lock = useRef(false);
   const current = useRef(model);
   current.current = model;
-  const blocked = pending || model.busy || model.loading;
+  const blocked = pending || model.busy || model.loading || openApiOpen;
   const close = () => { setMode(null); setText(''); setServiceName(''); setBundle(null); setSelection({}); setError(''); };
   const open = (next: typeof mode) => { setText(''); setServiceName(''); setBundle(null); setError(''); setSelection(next === 'export' ? allSelected(model.workspace) : {}); setMode(next); };
   const preview = async (content: string) => {
@@ -58,11 +61,15 @@ export function ExchangePanel({ model }: { model: Workbench }) {
     <div className="exchange-actions">
       <button disabled={!desktop || blocked} onClick={() => void read()}><ArrowDownToLine size={15} />从文件导入</button>
       <button disabled={blocked} onClick={() => open('project')}>粘贴项目 JSON</button>
+      <button disabled={blocked} onClick={() => setOpenApiOpen(true)}>OpenAPI 导入 / 更新</button>
       <button disabled={!model.project || !model.environment || blocked} onClick={() => open('curl')}>导入 cURL</button>
       <button disabled={!desktop || !model.workspace.projects.length || blocked} onClick={() => open('export')}><ArrowUpFromLine size={15} />导出 JSON</button>
     </div>
     <p className="hint transfer-help">支持常见接口集合与环境文件。仅解析配置，不执行脚本或发送请求。凭据需重新填写，上传文件需重新选择。</p>
     {!desktop && <p className="hint">浏览器可试用文本导入；文件读写和备份请使用桌面版。</p>}
+    {openApiOpen && <Suspense fallback={<p className="hint" role="status">正在加载 OpenAPI 导入工具…</p>}>
+      <OpenApiImportDialog model={model} onClose={() => setOpenApiOpen(false)} />
+    </Suspense>}
     {mode && <Dialog title={mode === 'curl' ? '导入 cURL' : mode === 'export' ? '导出 JSON' : '粘贴项目 JSON'} wide onClose={() => { if (!blocked) close(); }}>
       <form onSubmit={e => { e.preventDefault(); void submit(); }}>
         <div className="form-fields">

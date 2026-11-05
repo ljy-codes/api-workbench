@@ -47,6 +47,7 @@ fn set_variables(workspace: &mut Workspace, variables: Vec<Value>) {
     workspace.variables = serde_json::from_value(json!(variables)).unwrap();
 }
 
+mod diagnostics;
 mod v02;
 
 #[test]

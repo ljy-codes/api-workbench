@@ -1,29 +1,34 @@
-use super::prepare::Prepared;
-use crate::models::{Pair, ResponseData};
+use super::{prepare::Prepared, ExecutionFailure, ExecutionTimings};
+use crate::models::{Pair, RequestOutcome, ResponseData};
 use futures_util::StreamExt;
-use tokio::time::Instant;
 
 const PREVIEW_LIMIT: usize = 2 * 1024 * 1024;
 
 /// Never format reqwest errors: their Display/source chain can embed the real
 /// secret-bearing URL. Keep the boundary error categories intentionally coarse.
-fn transport_error(error: reqwest::Error) -> String {
+fn transport_error(error: reqwest::Error) -> ExecutionFailure {
     if error.is_timeout() {
-        "请求整体超时".into()
+        ExecutionFailure::timeout()
     } else if error.is_connect() {
-        "连接失败，请检查地址、DNS、网络或 TLS 证书".into()
+        ExecutionFailure::new(
+            RequestOutcome::Connection,
+            "连接失败，请检查地址、DNS、网络或 TLS 证书",
+        )
     } else if error.is_body() || error.is_decode() {
-        "响应正文接收失败，响应不完整".into()
+        ExecutionFailure::new(RequestOutcome::Body, "响应正文接收失败，响应不完整")
     } else {
-        "HTTP 传输失败（请求可能已送达，请勿盲目重发写操作）".into()
+        ExecutionFailure::new(
+            RequestOutcome::Transport,
+            "HTTP 传输失败（请求可能已送达，请勿盲目重发写操作）",
+        )
     }
 }
 
 pub(super) async fn send(
     prepared: Prepared,
     execution_id: String,
-    started: Instant,
-) -> Result<ResponseData, String> {
+    timings: &mut ExecutionTimings,
+) -> Result<ResponseData, ExecutionFailure> {
     // Explicit no-retry policy (reqwest 0.12 with retry support), a fresh
     // non-pooled HTTP/1 client and no redirects avoid transparent write replay,
     // including reuse of a stale pooled connection and HTTP/2 retry semantics.
@@ -40,7 +45,9 @@ pub(super) async fn send(
         .no_proxy()
         .timeout(prepared.timeout)
         .build()
-        .map_err(|_| "原生 HTTP 客户端初始化失败")?;
+        .map_err(|_| {
+            ExecutionFailure::new(RequestOutcome::Transport, "原生 HTTP 客户端初始化失败")
+        })?;
     let mut builder = client
         .request(prepared.method, prepared.url)
         .headers(prepared.headers);
@@ -48,9 +55,17 @@ pub(super) async fn send(
         builder = builder.body(body);
     }
     if let Some(fields) = prepared.multipart {
-        builder = builder.multipart(super::upload::form(fields).await?);
+        builder = builder.multipart(
+            super::upload::form(fields)
+                .await
+                .map_err(ExecutionFailure::validation)?,
+        );
     }
+    // This is only network waiting for headers (connection/TLS/upload included).
+    // Client creation and local multipart reads belong to preparation instead.
+    timings.start_headers();
     let response = builder.send().await.map_err(transport_error)?;
+    timings.start_download(&response);
     // Do not call error_for_status: 4xx/5xx are useful HTTP responses.
     let status = response.status();
     let headers = response
@@ -68,10 +83,17 @@ pub(super) async fn send(
     let mut size_bytes = 0_u64;
     let mut preview = Vec::new();
     while let Some(chunk) = stream.next().await {
-        let chunk = chunk.map_err(transport_error)?;
+        let chunk = chunk.map_err(|error| {
+            if error.is_timeout() {
+                ExecutionFailure::timeout()
+            } else {
+                ExecutionFailure::new(RequestOutcome::Body, "响应正文接收失败，响应不完整")
+            }
+        })?;
         size_bytes = size_bytes
             .checked_add(chunk.len() as u64)
-            .ok_or("响应计数超出支持范围")?;
+            .ok_or_else(|| ExecutionFailure::new(RequestOutcome::Body, "响应计数超出支持范围"))?;
+        timings.diagnostics.received_bytes = Some(size_bytes);
         let keep = chunk.len().min(PREVIEW_LIMIT.saturating_sub(preview.len()));
         preview.extend_from_slice(&chunk[..keep]);
         // Count the entire chunk actually yielded by the body stream, including
@@ -86,6 +108,7 @@ pub(super) async fn send(
     // sizeBytes is RECEIVED bytes, not the remote body's total size or the
     // declared Content-Length; the last chunk can take it slightly over the cap.
     drop(stream);
+    timings.finish_phase();
     let mut truncated = size_bytes > preview.len() as u64;
     let mut body = String::from_utf8_lossy(&preview).into_owned();
     // Lossy decoding can expand bytes (one invalid byte -> 3 UTF-8 bytes).
@@ -102,12 +125,13 @@ pub(super) async fn send(
         execution_id,
         status: status.as_u16(),
         status_text: status.canonical_reason().unwrap_or("").into(),
-        duration_ms: started.elapsed().as_millis().min(u64::MAX as u128) as u64,
+        duration_ms: super::elapsed_ms(timings.started),
         size_bytes,
         headers,
         body,
         truncated,
         environment_name: prepared.preview.environment_name,
         url: prepared.preview.url,
+        diagnostics: None,
     })
 }
