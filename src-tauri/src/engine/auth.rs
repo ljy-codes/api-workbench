@@ -78,17 +78,70 @@ pub(super) fn apply(
     url: &mut Url,
     redacted_url: &mut Url,
 ) -> Result<(), String> {
+    apply_with(
+        auth,
+        masked,
+        headers,
+        url,
+        redacted_url,
+        |value, masked| vars.render(value, masked),
+        |value| vars.header_name(value, masked),
+    )
+}
+
+/// Direct credentials are allowed only for the standalone temporary IPC path.
+/// Stored requests still call protect(), including inactive credential fields.
+pub(super) fn apply_literal(
+    auth: Option<&AuthConfig>,
+    headers: &mut HeaderMap,
+    url: &mut Url,
+    redacted_url: &mut Url,
+) -> Result<(), String> {
+    if let Some(auth) = auth {
+        if !matches!(auth.location.as_str(), "" | "header" | "query") {
+            return Err("鉴权类型或位置无效".into());
+        }
+        for value in [
+            &auth.token,
+            &auth.username,
+            &auth.password,
+            &auth.key,
+            &auth.value,
+        ] {
+            no_controls(value)?;
+        }
+    }
+    apply_with(
+        auth,
+        false,
+        headers,
+        url,
+        redacted_url,
+        |value, _| Ok(value.to_owned()),
+        |value| Ok(value.to_owned()),
+    )
+}
+
+fn apply_with(
+    auth: Option<&AuthConfig>,
+    masked: bool,
+    headers: &mut HeaderMap,
+    url: &mut Url,
+    redacted_url: &mut Url,
+    render: impl Fn(&str, bool) -> Result<String, String>,
+    render_header: impl Fn(&str) -> Result<String, String>,
+) -> Result<(), String> {
     let Some(auth) = auth else { return Ok(()) };
     let (key, value) = match auth.kind.as_str() {
         "none" => return Ok(()),
         "bearer" => {
-            let token = vars.render(&auth.token, masked)?;
+            let token = render(&auth.token, masked)?;
             no_controls(&token)?;
             ("authorization".into(), format!("Bearer {token}"))
         }
         "basic" => {
-            let username = vars.render(&auth.username, masked)?;
-            let password = vars.render(&auth.password, masked)?;
+            let username = render(&auth.username, masked)?;
+            let password = render(&auth.password, masked)?;
             no_controls(&username)?;
             no_controls(&password)?;
             if username.contains(':') {
@@ -108,11 +161,11 @@ pub(super) fn apply(
         }
         "apiKey" => {
             let key = if auth.location == "header" {
-                vars.header_name(&auth.key, masked)?
+                render_header(&auth.key)?
             } else {
-                vars.render(&auth.key, masked)?
+                render(&auth.key, masked)?
             };
-            let value = vars.render(&auth.value, masked)?;
+            let value = render(&auth.value, masked)?;
             no_controls(&key)?;
             no_controls(&value)?;
             if key.is_empty() {
@@ -127,7 +180,7 @@ pub(super) fn apply(
                     url.query_pairs_mut().append_pair(&key, &value);
                     redacted_url
                         .query_pairs_mut()
-                        .append_pair(&vars.render(&auth.key, true)?, MASK);
+                        .append_pair(&render(&auth.key, true)?, MASK);
                     return Ok(());
                 }
                 _ => return Err("API Key 位置只能为 header 或 query".into()),

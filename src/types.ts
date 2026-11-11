@@ -23,6 +23,9 @@ export interface ExecuteInput {
   executionId: string; environmentId: string; request: RequestDefinition;
   temporaryVariables: Pair[]; productionConfirmed: boolean;
 }
+/** Separate IPC contract: no workspace, service or environment identity. */
+export interface TemporaryRequest extends RequestConfig { url: string; method: string }
+export interface TemporaryExecuteInput { executionId: string; request: TemporaryRequest }
 export interface ResolvedVariable { name: string; value: string; source: string; isSecret: boolean }
 export interface Preview { url: string; environmentName: string; serviceName: string; isProduction: boolean; resolvedVariables: ResolvedVariable[] }
 export interface ResponseData {

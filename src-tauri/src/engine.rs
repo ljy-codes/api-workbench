@@ -5,14 +5,16 @@
 
 use crate::models::{
     DetailedExecutionResult, ExecuteInput, Preview, RequestDiagnostics, RequestOutcome,
-    ResponseData, Workspace,
+    ResponseData, TemporaryExecuteInput, Workspace,
 };
 use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 
 mod auth;
+mod body;
 mod curl;
 mod prepare;
+mod temporary;
 mod transport;
 mod upload;
 mod url_builder;
@@ -20,6 +22,49 @@ mod variables;
 
 pub fn preview(workspace: &Workspace, input: &ExecuteInput) -> Result<Preview, String> {
     Ok(prepare::prepare(workspace, input, prepare::Mode::Preview)?.preview)
+}
+
+pub fn preview_temporary(input: &TemporaryExecuteInput) -> Result<Preview, String> {
+    Ok(temporary::prepare(input, prepare::Mode::Preview)?.preview)
+}
+
+pub async fn execute_temporary_detailed(
+    input: TemporaryExecuteInput,
+    cancel: CancellationToken,
+) -> DetailedExecutionResult {
+    execute_temporary_with_timings(input, cancel, ExecutionTimings::new()).await
+}
+
+pub(crate) async fn execute_temporary_with_timings(
+    input: TemporaryExecuteInput,
+    cancel: CancellationToken,
+    mut timings: ExecutionTimings,
+) -> DetailedExecutionResult {
+    let result = async {
+        if cancel.is_cancelled() {
+            return Err(ExecutionFailure::cancelled());
+        }
+        timings.start_preparation();
+        let deadline = timings.deadline_ms(input.request.timeout_ms)?;
+        let prepared = temporary::prepare(&input, prepare::Mode::Execute).map_err(|_| {
+            ExecutionFailure::new(RequestOutcome::Validation, temporary::VALIDATION_ERROR)
+        })?;
+        tokio::select! {
+            biased;
+            _ = cancel.cancelled() => Err(ExecutionFailure::cancelled()),
+            result = tokio::time::timeout_at(
+                deadline,
+                transport::send(prepared, input.execution_id, &mut timings),
+            ) => result.unwrap_or_else(|_| Err(ExecutionFailure::timeout())).map_err(|mut error| {
+                if matches!(error.outcome, RequestOutcome::Validation) {
+                    error.safe_message = temporary::VALIDATION_ERROR;
+                }
+                error
+            }),
+        }
+    }
+    .await;
+    timings.into_detailed(result)
 }
 
 pub fn export_curl(workspace: &Workspace, input: &ExecuteInput) -> Result<String, String> {
@@ -158,14 +203,18 @@ impl ExecutionTimings {
     }
 
     pub(crate) fn deadline(&self, input: &ExecuteInput) -> Result<Instant, ExecutionFailure> {
-        if !(1..=300_000).contains(&input.request.timeout_ms) {
+        self.deadline_ms(input.request.timeout_ms)
+    }
+
+    pub(crate) fn deadline_ms(&self, timeout_ms: u64) -> Result<Instant, ExecutionFailure> {
+        if !(1..=300_000).contains(&timeout_ms) {
             return Err(ExecutionFailure::new(
                 RequestOutcome::Validation,
                 "请求整体超时必须为 1～300000 毫秒",
             ));
         }
         self.started
-            .checked_add(std::time::Duration::from_millis(input.request.timeout_ms))
+            .checked_add(std::time::Duration::from_millis(timeout_ms))
             .ok_or_else(|| {
                 ExecutionFailure::new(RequestOutcome::Validation, "请求超时配置超出范围")
             })

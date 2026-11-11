@@ -241,19 +241,21 @@ export function useWorkbench() {
       putExecutions(prev => prev[key!]?.id === execution.id ? { ...prev, [key!]: { ...prev[key!], cancelRequested: true } } : prev);
     } catch (error) { setNotice(errorMessage(error)); }
   };
-  const closeTab = (id: string) => switchContext(() => {
-    const remaining = openTabs.filter(tab => tab !== id);
-    setOpenTabs(remaining);
-    if (selectedId === id) {
-      setSelectedId([...remaining].reverse().find(tab => projectRequests.some(r => r.id === tab)) ?? null);
-      setPreview(null);
-    }
-  });
-  const closeAllTabs = () => switchContext(() => {
-    const projectIds = new Set(projectRequests.map(r => r.id));
-    setOpenTabs(tabs => tabs.filter(id => !projectIds.has(id)));
-    setSelectedId(null);
-  });
+  const closeTabs = (ids: string[]) => {
+    const projectRequestIds = new Set(projectRequests.map(request => request.id));
+    const closing = new Set(ids.filter(id => projectRequestIds.has(id)));
+    if (!closing.size) return;
+    return switchContext(() => {
+      const remaining = openTabs.filter(tab => !closing.has(tab));
+      setOpenTabs(remaining);
+      if (selectedId && closing.has(selectedId)) {
+        setSelectedId([...remaining].reverse().find(tab => projectRequestIds.has(tab)) ?? null);
+        setPreview(null);
+      }
+    });
+  };
+  const closeTab = (id: string) => closeTabs([id]);
+  const closeAllTabs = () => closeTabs(projectRequests.map(request => request.id));
   const runLocalAction = async (action: () => Promise<void>, nativeOnly = false) => {
     if (lock.current || confirmation) return false;
     if (nativeOnly && !desktop) { setNotice('此功能需要桌面模式；浏览器仅保留内存草稿。'); return false; }
@@ -376,7 +378,7 @@ export function useWorkbench() {
     history, clearHistory, restoreHistory,
     deleteHistory: (id: string) => putHistory(historyRef.current.filter(entry => entry.id !== id)),
     confirmation, setConfirmation, confirm, mutate, updateRequest, save, execute, cancel, preview, load, clearResponse, cleanData,
-    openTabs, closeTab, closeAllTabs, copyCurl: () => execute(false, true), importProjectText, importCurlText, readProject, writeProject, readTransferFile, importSelected, applyOpenApi, writeSelected, pickFile, backup,
+    openTabs, closeTab, closeTabs, closeAllTabs, copyCurl: () => execute(false, true), importProjectText, importCurlText, readProject, writeProject, readTransferFile, importSelected, applyOpenApi, writeSelected, pickFile, backup,
     hasRunning: Object.values(executions).some(execution => execution.running),
     execution: selectedKey ? executions[selectedKey] : undefined,
     temporary: selectedKey ? temporary[selectedKey] ?? [] : [],

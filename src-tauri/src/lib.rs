@@ -9,7 +9,10 @@ mod secrets;
 pub mod store;
 
 use executions::Executions;
-use models::{DetailedExecutionResult, ExecuteInput, Preview, RequestOutcome, ResponseData, Workspace};
+use models::{
+    DetailedExecutionResult, ExecuteInput, Preview, RequestOutcome, ResponseData,
+    TemporaryExecuteInput, Workspace,
+};
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -195,6 +198,42 @@ fn cancel_request(state: State<'_, AppState>, execution_id: String) -> Result<()
 }
 
 #[tauri::command]
+fn preview_temporary_request(input: TemporaryExecuteInput) -> Result<Preview, String> {
+    engine::preview_temporary(&input)
+}
+
+#[tauri::command(async)]
+fn send_temporary_request(
+    state: State<'_, AppState>,
+    input: TemporaryExecuteInput,
+) -> impl std::future::Future<Output = DetailedExecutionResult> + Send + 'static {
+    send_temporary_request_inner(state.executions.clone(), input)
+}
+
+async fn send_temporary_request_inner(
+    executions: Executions,
+    input: TemporaryExecuteInput,
+) -> DetailedExecutionResult {
+    let mut timings = engine::ExecutionTimings::new();
+    timings.start_preparation();
+    let running = match executions.start(&input.execution_id) {
+        Ok(running) => running,
+        Err(error) => {
+            let failure = if error == "执行管理器不可用" {
+                engine::ExecutionFailure::new(RequestOutcome::Transport, "执行管理器不可用")
+            } else {
+                engine::ExecutionFailure::new(
+                    RequestOutcome::Validation,
+                    "无法注册执行，请检查执行 ID、重复请求或并发数量",
+                )
+            };
+            return timings.into_detailed(Err(failure));
+        }
+    };
+    engine::execute_temporary_with_timings(input, running.token.clone(), timings).await
+}
+
+#[tauri::command]
 fn app_info(state: State<'_, AppState>) -> AppInfo {
     AppInfo {
         data_dir: state.data_dir.to_string_lossy().into_owned(),
@@ -358,6 +397,8 @@ pub fn run() {
             preview_request,
             send_request,
             send_request_detailed,
+            preview_temporary_request,
+            send_temporary_request,
             cancel_request,
             app_info,
             pick_upload_file,

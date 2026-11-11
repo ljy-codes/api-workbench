@@ -147,6 +147,28 @@ pub struct ExecuteInput {
     pub temporary_variables: Vec<Pair>,
     pub production_confirmed: bool,
 }
+/// A literal, standalone request: no persisted request or environment identity.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TemporaryExecuteInput {
+    pub execution_id: String,
+    pub request: TemporaryRequest,
+}
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TemporaryRequest {
+    pub url: String,
+    pub method: String,
+    pub query: Vec<Pair>,
+    pub headers: Vec<Pair>,
+    pub body_type: String,
+    pub body: String,
+    pub timeout_ms: u64,
+    #[serde(default)]
+    pub auth: Option<AuthConfig>,
+    #[serde(default)]
+    pub form: Vec<FormField>,
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct ResolvedVariable {

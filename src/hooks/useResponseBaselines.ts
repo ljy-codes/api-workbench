@@ -6,6 +6,9 @@ const memoryLimit = 16 * 1024 * 1024;
 /** Session only; the App owns this hook so response-panel remounts cannot lose a baseline. */
 export function useResponseBaselines(context: string) {
   const [baselines, setBaselines] = useState<Map<string, ResponseBaseline>>(() => new Map());
+  const forgetBaseline = (key: string) => setBaselines(previous => {
+    const next = new Map(previous); next.delete(key); return next;
+  });
   return {
     baseline: baselines.get(context),
     saveBaseline(body: string): boolean {
@@ -24,6 +27,7 @@ export function useResponseBaselines(context: string) {
       });
       return true;
     },
-    clearBaseline() { setBaselines(previous => { const next = new Map(previous); next.delete(context); return next; }); },
+    clearBaseline() { forgetBaseline(context); },
+    forgetBaseline,
   };
 }

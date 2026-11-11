@@ -48,6 +48,7 @@ fn set_variables(workspace: &mut Workspace, variables: Vec<Value>) {
 }
 
 mod diagnostics;
+mod temporary;
 mod v02;
 
 #[test]

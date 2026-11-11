@@ -33,20 +33,26 @@ function SecretReference({ label, value, onChange }: { label: string; value: str
   </div>;
 }
 
-export function AuthEditor({ value, onChange, inherited = false }: { value?: AuthConfig | null; onChange: (value: AuthConfig | null) => void; inherited?: boolean }) {
+function Credential({ temporary, label, temporaryLabel, value, onChange }: { temporary: boolean; label: string; temporaryLabel: string; value: string; onChange: (value: string) => void }) {
+  return temporary
+    ? <label>{temporaryLabel}<input type="password" aria-label={temporaryLabel} autoComplete="off" spellCheck={false} value={value} onChange={event => onChange(event.target.value)} /></label>
+    : <SecretReference label={label} value={value} onChange={onChange} />;
+}
+
+export function AuthEditor({ value, onChange, inherited = false, temporary = false }: { value?: AuthConfig | null; onChange: (value: AuthConfig | null) => void; inherited?: boolean; temporary?: boolean }) {
   const kind = value?.kind ?? (inherited ? 'inherit' : 'none');
   const update = (patch: Partial<AuthConfig>) => onChange({ ...value!, ...patch });
   return <div className="auth-editor">
-    <p className="hint">凭据只允许使用 <code>{'{{变量名}}'}</code> 引用。在变量配置中将实际值标记为秘密后保存；鉴权生成项与手工 Header / Query 冲突时会拒绝发送。</p>
+    <p className="hint">{temporary ? '直接填写本次请求使用的凭据，无需配置环境变量。' : <>凭据只允许使用 <code>{'{{变量名}}'}</code> 引用。在变量配置中将实际值标记为秘密后保存；鉴权生成项与手工 Header / Query 冲突时会拒绝发送。</>}</p>
     <label>鉴权方式<select aria-label="鉴权方式" value={kind} onChange={e => {
       const next = e.target.value;
       onChange(next === 'inherit' ? null : next === 'apiKey' ? { kind: 'apiKey', key: '', value: '', location: 'header' } : { kind: next as AuthConfig['kind'] });
     }}>{inherited && <option value="inherit">继承服务鉴权</option>}<option value="none">无鉴权{inherited ? '（不继承）' : ''}</option><option value="bearer">Bearer Token</option><option value="basic">Basic</option><option value="apiKey">API Key</option></select></label>
     {kind === 'inherit' && <p className="hint">使用所属服务的公共鉴权配置。</p>}
     <div className="auth-fields" key={kind}>
-      {kind === 'bearer' && <SecretReference label="Token 变量引用" value={value?.token ?? ''} onChange={token => update({ token })} />}
-      {kind === 'basic' && <><label>用户名<input aria-label="鉴权用户名" autoComplete="off" value={value?.username ?? ''} onChange={e => update({ username: e.target.value })} /></label><SecretReference label="密码变量引用" value={value?.password ?? ''} onChange={password => update({ password })} /></>}
-      {kind === 'apiKey' && <><label>Key 名称<input aria-label="API Key 名称" value={value?.key ?? ''} onChange={e => update({ key: e.target.value })} /></label><SecretReference label="API Key 变量引用" value={value?.value ?? ''} onChange={secret => update({ value: secret })} /><label>位置<select aria-label="API Key 位置" value={value?.location ?? 'header'} onChange={e => update({ location: e.target.value as 'header' | 'query' })}><option value="header">Header</option><option value="query">Query</option></select></label></>}
+      {kind === 'bearer' && <Credential temporary={temporary} temporaryLabel="临时 Token" label="Token 变量引用" value={value?.token ?? ''} onChange={token => update({ token })} />}
+      {kind === 'basic' && <><label>用户名<input aria-label="鉴权用户名" autoComplete="off" value={value?.username ?? ''} onChange={e => update({ username: e.target.value })} /></label><Credential temporary={temporary} temporaryLabel="临时密码" label="密码变量引用" value={value?.password ?? ''} onChange={password => update({ password })} /></>}
+      {kind === 'apiKey' && <><label>Key 名称<input aria-label="API Key 名称" value={value?.key ?? ''} onChange={e => update({ key: e.target.value })} /></label><Credential temporary={temporary} temporaryLabel="临时 API Key" label="API Key 变量引用" value={value?.value ?? ''} onChange={secret => update({ value: secret })} /><label>位置<select aria-label="API Key 位置" value={value?.location ?? 'header'} onChange={e => update({ location: e.target.value as 'header' | 'query' })}><option value="header">Header</option><option value="query">Query</option></select></label></>}
     </div>
   </div>;
 }

@@ -492,6 +492,11 @@
 :root .request-tab.active { background: var(--accent-soft); box-shadow: inset 0 -2px var(--accent); }
 :root .request-tab button { background: transparent; border-color: transparent; }
 :root .request-tab .tab-close { color: var(--muted); }
+:root .all-tabs-trigger { background: var(--button-bg); border-color: var(--border); color: var(--text-secondary); }
+:root .all-tabs-trigger:hover:not(:disabled) { background: var(--button-hover); border-color: var(--accent-border); }
+:root .request-tabs-menu { background: var(--panel); border-color: var(--border); box-shadow: var(--overlay-shadow); }
+:root .request-tabs-menu > button { background: transparent; border-color: transparent; color: var(--text); }
+:root .request-tabs-menu > button:hover:not(:disabled), :root .request-tabs-menu > button:focus-visible { background: var(--button-hover); border-color: var(--focus-ring); }
 :root .resize-handle { background: transparent; }
 :root .resize-handle:focus-visible { outline: none; }
 
@@ -507,6 +512,7 @@
   color: var(--text-secondary);
 }
 :root .response-title > svg { color: var(--muted); }
+:root .response-actions-bar { border-top: 1px solid var(--border); }
 :root .success-badge { background: var(--success-bg); color: var(--success); }
 :root .error-badge { background: var(--danger-bg); color: var(--danger); }
 :root .empty-icon { background: var(--panel-raised); border-color: var(--border); color: var(--muted); }

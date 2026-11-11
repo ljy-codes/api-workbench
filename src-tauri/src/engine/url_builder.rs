@@ -62,7 +62,7 @@ fn encode_static(value: &str) -> Result<String, String> {
     Ok(result)
 }
 
-fn reject_traversal(path: &str) -> Result<(), String> {
+pub(super) fn reject_traversal(path: &str) -> Result<(), String> {
     for segment in path.split('/') {
         let decoded = percent_decode_str(segment).collect::<Vec<u8>>();
         if decoded == b"." || decoded == b".." || decoded.contains(&b'\\') {

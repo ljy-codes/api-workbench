@@ -1,4 +1,5 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom/vitest';
 import { afterEach, expect, it, vi } from 'vitest';
 import { ResponsePanel } from './ResponsePanel';
 import { EditorView } from '@uiw/react-codemirror';
@@ -6,6 +7,12 @@ import { foldedRanges } from '@codemirror/language';
 import userEvent from '@testing-library/user-event';
 
 afterEach(cleanup);
+it('将响应状态和响应操作拆成两层工具栏', () => {
+  render(<ResponsePanel execution={{ id: 'toolbar', requestId: 'r', requestName: '查询', environment: '开发', running: false, response: { executionId: 'toolbar', status: 200, statusText: 'OK', durationMs: 12, sizeBytes: 2, body: '{}', headers: [], truncated: false, environmentName: '开发', url: 'https://example.test' } }} />);
+  expect(screen.getByRole('region', { name: '响应状态' })).toContainElement(screen.getByText('200 OK'));
+  expect(screen.getByRole('region', { name: '响应操作' })).toContainElement(screen.getByRole('tab', { name: '正文' }));
+  expect(screen.getByRole('region', { name: '响应操作' })).toContainElement(screen.getByRole('button', { name: '复制响应正文' }));
+});
 it('清除按钮仅在有执行且未运行时可用，回调可选', () => {
   const execution = { id: 'e', requestId: 'r', requestName: '接口', environment: '开发', running: false, error: 'failed' };
   const onClear = vi.fn();

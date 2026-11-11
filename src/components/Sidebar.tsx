@@ -10,6 +10,7 @@ export function Sidebar({ workspace: w, selectedId, onSelect, onManage, onCreate
   const [search, setSearch] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [context, setContext] = useState<TreeMenu | null>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const toggle = (id: string) => setCollapsed(prev => { const next = new Set(prev); if (next.has(id)) next.delete(id); else next.add(id); return next; });
@@ -19,6 +20,22 @@ export function Sidebar({ workspace: w, selectedId, onSelect, onManage, onCreate
   const menu = !disabled && onCreate && context?.projectId === w.activeProjectId
     && services.some(s => s.id === context.serviceId)
     && (!context.parentId || w.folders.some(f => f.id === context.parentId && f.serviceId === context.serviceId)) ? context : null;
+  useEffect(() => {
+    const handleKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (disabled) return;
+      const target = event.target;
+      if (target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable="true"], .cm-editor')) return;
+      if (event.key === '/' || ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k')) {
+        event.preventDefault();
+        searchRef.current?.focus();
+      } else if (event.key === 'Escape') {
+        setSearch('');
+        searchRef.current?.blur();
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [disabled]);
   useEffect(() => { setContext(null); }, [w.activeProjectId, disabled]);
   useLayoutEffect(() => {
     if (!menu || !menuRef.current) return;
@@ -93,7 +110,7 @@ export function Sidebar({ workspace: w, selectedId, onSelect, onManage, onCreate
     </div>);
   return <aside className="sidebar">
     <div className="sidebar-title"><span>接口集合 <small>{services.reduce((n, s) => n + w.requests.filter(r => r.serviceId === s.id).length, 0)}</small></span><div className="sidebar-actions"><button className="icon-button" aria-label="一键收起" title="收起全部服务和目录，并清除搜索" disabled={disabled || !services.length} onClick={collapseAll}><ListCollapse size={16} /></button><button className="icon-button" aria-label="管理接口集合" disabled={disabled} onClick={onManage}><Plus size={17} /></button></div></div>
-    <label className="search-field"><Search size={15} /><input aria-label="搜索接口" value={search} disabled={disabled} onChange={e => setSearch(e.target.value)} placeholder="名称 / 路径 / 方法 / 服务" /><kbd>/</kbd></label>
+    <label className="search-field"><Search size={15} /><input ref={searchRef} aria-label="搜索接口" value={search} disabled={disabled} onChange={e => setSearch(e.target.value)} placeholder="名称 / 路径 / 方法 / 服务" /><kbd>/</kbd></label>
     <div className="service-tree">
       {services.filter(s => !term || matches.some(r => r.serviceId === s.id)).map(s => <section key={s.id} className="service-group">
         <button className="service-node" title={`${s.name}\n${w.bindings.find(b => b.serviceId === s.id && b.environmentId === project?.activeEnvironmentId)?.baseUrl || '当前环境未配置地址'}`} onClick={() => toggle(s.id)} aria-expanded={!collapsed.has(s.id)} {...contextHandlers(s.id, null)}><ChevronDown size={13} className={collapsed.has(s.id) ? 'collapsed' : ''} /><Server size={15} /><span className="ellipsis">{s.name}</span><small>{w.requests.filter(r => r.serviceId === s.id).length}</small></button>

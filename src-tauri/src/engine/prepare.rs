@@ -1,9 +1,9 @@
 use super::{
-    auth, url_builder,
+    auth, body, url_builder,
     variables::{Variables, MASK},
 };
 use crate::models::*;
-use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
+use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Method;
 use serde_json::Value;
 use std::time::Duration;
@@ -268,81 +268,28 @@ pub(super) fn prepare(
         &mut url,
         &mut redacted_url,
     )?;
-    let mut multipart = None;
-    let body = match input.request.body_type.as_str() {
-        "none" => None,
-        "text" => Some(variables.render(&input.request.body, masked)?),
-        "json" => {
-            let mut value: Value = serde_json::from_str(&input.request.body)
-                .map_err(|_| "JSON 正文无效；占位符只能放在 JSON 字符串值内")?;
-            replace_json_values(&mut value, &variables, masked)?;
-            if !headers.contains_key(CONTENT_TYPE) {
-                headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-            }
-            Some(serde_json::to_string(&value).map_err(|_| "JSON 正文序列化失败")?)
-        }
-        "form" | "multipart" => {
-            let is_multipart = input.request.body_type == "multipart";
-            let mut fields = Vec::new();
-            for field in input.request.form.iter().filter(|f| f.enabled) {
-                if !matches!(field.kind.as_str(), "text" | "file") {
-                    return Err("表单字段类型只能为 text 或 file".into());
-                }
-                if field.kind == "file" && !is_multipart {
-                    return Err("URL 编码表单不支持文件字段，请选择 multipart".into());
-                }
-                let key = variables.render(&field.key, masked)?;
-                if key.chars().any(char::is_control) {
-                    return Err("表单字段名称禁止控制字符或 CR/LF 注入".into());
-                }
-                // Never render, stat, open or read file paths in preview/export.
-                let value = if field.kind == "file" && masked {
-                    String::new()
-                } else {
-                    // Validate references first, even for wholly masked fields.
-                    let value = variables.render(&field.value, masked)?;
-                    if masked
-                        && url_builder::sensitive_query_key(&variables.render(&field.key, false)?)
-                    {
-                        MASK.to_owned()
-                    } else {
-                        value
-                    }
-                };
-                fields.push(FormField {
-                    key,
-                    value,
-                    ..field.clone()
-                });
-            }
-            if is_multipart {
-                if headers.contains_key(CONTENT_TYPE) {
-                    return Err("multipart Content-Type 和 boundary 由原生引擎管理".into());
-                }
-                multipart = Some(fields);
-                None
-            } else {
-                if !headers.contains_key(CONTENT_TYPE) {
-                    headers.insert(
-                        CONTENT_TYPE,
-                        HeaderValue::from_static("application/x-www-form-urlencoded"),
-                    );
-                }
-                Some(
-                    url::form_urlencoded::Serializer::new(String::new())
-                        .extend_pairs(fields.iter().map(|f| (&f.key, &f.value)))
-                        .finish(),
-                )
-            }
-        }
-        _ => return Err("正文类型仅支持 none、json、text、form、multipart".into()),
-    };
+    let prepared_body = body::prepare(
+        body::BodyInput {
+            kind: &input.request.body_type,
+            text: &input.request.body,
+            fields: &input.request.form,
+        },
+        &mut headers,
+        masked,
+        |value| variables.render(value, masked),
+        |value| replace_json_values(value, &variables, masked),
+        |key| {
+            Ok(url_builder::sensitive_query_key(
+                &variables.render(key, false)?,
+            ))
+        },
+    )?;
     Ok(Prepared {
         url,
         method,
         headers,
-        body,
-        multipart,
+        body: prepared_body.body,
+        multipart: prepared_body.multipart,
         timeout,
         preview: Preview {
             url: redacted_url.into(),

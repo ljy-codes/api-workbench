@@ -1,5 +1,5 @@
 import { invoke, isTauri } from '@tauri-apps/api/core';
-import type { DetailedExecutionResult, ExecuteInput, Preview, ResponseData, Workspace } from '../types';
+import type { DetailedExecutionResult, ExecuteInput, Preview, ResponseData, TemporaryExecuteInput, Workspace } from '../types';
 import { RequestExecutionError } from './request-diagnostics';
 
 export const desktop = isTauri();
@@ -15,6 +15,12 @@ export const api = {
     const result = await call<DetailedExecutionResult>('send_request_detailed', { input });
     if (result.response) return result.response;
     throw new RequestExecutionError(result.error ?? '请求未完成', result.diagnostics);
+  },
+  previewTemporary: (input: TemporaryExecuteInput) => call<Preview>('preview_temporary_request', { input }),
+  sendTemporary: async (input: TemporaryExecuteInput): Promise<ResponseData> => {
+    const result = await call<DetailedExecutionResult>('send_temporary_request', { input });
+    if (result.response) return result.response;
+    throw new RequestExecutionError(result.error ?? '临时请求未完成', result.diagnostics);
   },
   cancel: (executionId: string) => call<void>('cancel_request', { executionId }),
   pickFile: () => call<string | null>('pick_upload_file'),
