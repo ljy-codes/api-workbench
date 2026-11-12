@@ -24,3 +24,18 @@ it('深层 JSON 用非递归扫描，不受调用栈深度限制', () => {
   expect(folds.size).toBe(depth);
   expect(folds.get(0)).toMatchObject({ kind: '[', depth: 0, count: 1 });
 });
+
+it('折叠扫描忽略注释中的括号、逗号和字符串标记', () => {
+  const value = `{
+  // "ignored": [1, 2, 3],
+  "items": [
+    1,
+    /* { "ignored": true } */
+    2
+  ]
+}`;
+  const folds = [...jsonFolds(value).values()];
+  expect(folds).toHaveLength(2);
+  expect(folds.find(fold => fold.kind === '[')?.count).toBe(2);
+  expect(folds.find(fold => fold.depth === 0)?.count).toBe(1);
+});

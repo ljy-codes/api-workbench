@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { stripJsonComments } from './json-comments';
 import { formatJson } from './json-format';
 
 describe('JSON 格式化', () => {
@@ -33,7 +34,21 @@ describe('JSON 格式化', () => {
     expect(() => formatJson('[1]', { compact: true, maxOutputChars: 2 })).toThrow(/2/);
   });
 
-  it.each(['[,]', '{,}', '[1,,]', '{"a":1,,}', '{"a":,}', '{"a":1 "b":2}', '{"a":undefined}', '{/*comment*/"a":1}', '{"a":"unterminated}', ''])('拒绝不明确的错误，不猜测修复内容：%s', source => {
+  it('格式化时保留行注释、块注释和字符串中的斜杠', () => {
+    const source = `{"enabled":true,// "secret":"{{token}}",
+ "url":"https://example.test/a//b",/* keep */"value":1}`;
+    const formatted = formatJson(source);
+    expect(formatted).toContain('// "secret":"{{token}}"');
+    expect(formatted).toContain('/* keep */');
+    expect(formatted).toContain('"https://example.test/a//b"');
+    expect(JSON.parse(stripJsonComments(formatted))).toEqual({
+      enabled: true,
+      url: 'https://example.test/a//b',
+      value: 1,
+    });
+  });
+
+  it.each(['[,]', '{,}', '[1,,]', '{"a":1,,}', '{"a":,}', '{"a":1 "b":2}', '{"a":undefined}', '{"a":1 /*comment*/', '{"a":"unterminated}', ''])('拒绝不明确的错误，不猜测修复内容：%s', source => {
     expect(() => formatJson(source)).toThrow();
   });
 });

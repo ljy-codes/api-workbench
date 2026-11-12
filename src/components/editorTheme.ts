@@ -27,6 +27,7 @@ export const editorTheme = [
     '&.cm-focused .cm-cursor': { borderLeftColor: 'var(--accent)' },
     '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, .cm-selectionBackground, ::selection': { backgroundColor: 'var(--code-selection)' },
     '.cm-searchMatch': { backgroundColor: 'var(--code-search-bg)', color: 'var(--code-search-text)', borderRadius: '2px' },
+    '.cm-json-comment': { color: 'var(--code-comment)', fontStyle: 'italic' },
   }, { dark: true }),
   syntaxHighlighting(jsonHighlightStyle),
 ];

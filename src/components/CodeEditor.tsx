@@ -2,6 +2,7 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'rea
 import CodeMirror, { Decoration, EditorView, ExternalChange } from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
 import { codeFolding, foldEffect, foldedRanges, foldService, unfoldAll, unfoldEffect } from '@codemirror/language';
+import { findJsonCommentRanges, toggleJsonLineComments } from '../lib/json-comments';
 import { jsonFolds } from '../lib/json-folding';
 import type { JsonRange } from '../lib/json-inspection';
 import { editorTheme } from './editorTheme';
@@ -23,6 +24,22 @@ function revealRange(view: EditorView, range: JsonRange) {
   });
   view.dispatch({ effects, selection: { anchor: from, head: to } });
   view.focus();
+}
+
+function lineStart(source: string, line: number): number {
+  let current = 1;
+  for (let index = 0; index < source.length; index++) {
+    if (current === line) return index;
+    if (source[index] === '\n') current++;
+  }
+  return source.length;
+}
+
+function lineEnd(source: string, line: number): number {
+  const start = lineStart(source, line);
+  const newline = source.indexOf('\n', start);
+  const end = newline < 0 ? source.length : newline;
+  return source[end - 1] === '\r' ? end - 1 : end;
 }
 
 const CodeEditor = forwardRef<CodeEditorHandle, {
@@ -89,10 +106,37 @@ const CodeEditor = forwardRef<CodeEditorHandle, {
       }),
     ] : []),
     EditorView.contentAttributes.of({ 'aria-label': label, ...(readOnly ? { tabindex: '0' } : {}) }),
+    ...(isJson && !readOnly && !disabled ? [EditorView.domEventHandlers({
+      keydown(event, view) {
+        if (!(event.key === '/' && (event.ctrlKey || event.metaKey))) return false;
+        const selection = view.state.selection.main;
+        const source = view.state.doc.toString();
+        const firstLine = view.state.doc.lineAt(selection.from).number;
+        const lastLine = view.state.doc.lineAt(selection.to).number;
+        const next = toggleJsonLineComments(source, selection.from, selection.to);
+        const nextFrom = lineStart(next, firstLine);
+        const nextTo = lineEnd(next, lastLine);
+        view.dispatch({
+          changes: { from: 0, to: view.state.doc.length, insert: next },
+          selection: { anchor: nextFrom, head: nextTo },
+        });
+        event.preventDefault();
+        return true;
+      },
+    })] : []),
+    ...(isJson ? [EditorView.decorations.of(view => {
+      try {
+        return Decoration.set(findJsonCommentRanges(view.state.doc.toString()).map(comment =>
+          Decoration.mark({ class: 'cm-json-comment' }).range(comment.from, comment.to),
+        ));
+      } catch {
+        return Decoration.none;
+      }
+    })] : []),
     EditorView.decorations.of(Decoration.set(matches.map(match =>
       Decoration.mark({ class: 'cm-searchMatch', tagName: 'mark' }).range(match.from, match.to),
     ))),
-  ], [isJson, label, matches, readOnly, folds]);
+  ], [disabled, isJson, label, matches, readOnly, folds]);
   const basicSetup = useMemo(() => ({
     lineNumbers: true, foldGutter: true, highlightActiveLine: !readOnly,
     highlightActiveLineGutter: !readOnly, searchKeymap: !readOnly,

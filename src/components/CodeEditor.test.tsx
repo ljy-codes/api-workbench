@@ -88,3 +88,22 @@ it('字段定位展开遮挡目标的折叠并选中目标，保持其他容器�
   expect(foldedRanges(view.state).size).toBe(count - 1);
   expect(view.state.doc.toString()).toBe(value);
 });
+
+it('JSON 编辑器高亮注释并支持 Mod+/ 注释或恢复选中行', async () => {
+  const value = `{
+  "name": "Example",
+  "enabled": true
+}`;
+  const { container } = render(<CodeEditor value={value} isJson onChange={vi.fn()} />);
+  const content = screen.getByLabelText('请求正文');
+  const view = EditorView.findFromDOM(content)!;
+  const from = value.indexOf('"name"');
+  const to = value.indexOf('"enabled"');
+  view.dispatch({ selection: { anchor: from, head: to } });
+  fireEvent.keyDown(content, { key: '/', code: 'Slash', ctrlKey: true });
+  expect(view.state.doc.toString()).toContain('// "name": "Example",');
+  expect(view.state.doc.toString()).toContain('// "enabled": true');
+  await waitFor(() => expect(container.querySelector('.cm-json-comment')).toBeTruthy());
+  fireEvent.keyDown(content, { key: '/', code: 'Slash', ctrlKey: true });
+  expect(view.state.doc.toString()).toBe(value);
+});

@@ -1,3 +1,5 @@
+import { findJsonCommentRanges } from './json-comments';
+
 export interface JsonFold {
   from: number;
   to: number;
@@ -11,8 +13,24 @@ export interface JsonFold {
 export function jsonFolds(value: string): Map<number, JsonFold> {
   const folds = new Map<number, JsonFold>();
   const stack: (JsonFold & { lineFrom: number; hasValue: boolean })[] = [];
+  let comments;
+  try {
+    comments = findJsonCommentRanges(value);
+  } catch {
+    return new Map();
+  }
+  let commentIndex = 0;
   let lineFrom = 0, inString = false, escaped = false;
   for (let i = 0; i < value.length; i++) {
+    const comment = comments[commentIndex];
+    if (comment && i === comment.from) {
+      const commentText = value.slice(comment.from, comment.to);
+      const newline = commentText.lastIndexOf('\n');
+      if (newline >= 0) lineFrom = comment.from + newline + 1;
+      i = comment.to - 1;
+      commentIndex++;
+      continue;
+    }
     const char = value[i];
     if (char === '\n') lineFrom = i + 1;
     if (inString) {
