@@ -32,6 +32,7 @@ beforeEach(() => {
     execution, notice: '', confirmation: null, temporary: [], preview: null,
     save: vi.fn().mockResolvedValue(true), execute: vi.fn(), selectProject: vi.fn(), selectEnvironment: vi.fn(),
     selectRequest: vi.fn(), setNotice: vi.fn(), setConfirmation: vi.fn(), closeTab: vi.fn(),
+    canRestoreClosedTab: false, restoreClosedTab: vi.fn().mockResolvedValue(false),
     confirm: vi.fn().mockResolvedValue(true), cleanData: vi.fn().mockResolvedValue(true), clearResponse: vi.fn().mockResolvedValue(undefined),
     mutate: vi.fn(),
   } as unknown as Workbench;
@@ -94,6 +95,15 @@ describe('颜色、快捷键和环境 UI 边界', () => {
     act(() => screen.getByLabelText('名称').dispatchEvent(event));
     expect(event.defaultPrevented).toBe(true);
     expect(state.model.save).not.toHaveBeenCalled();
+  });
+  it('Ctrl/Cmd+Shift+P 打开命令面板并支持搜索', () => {
+    render(<App />);
+    fireEvent.keyDown(window, { key: 'p', ctrlKey: true, shiftKey: true });
+    const palette = screen.getByRole('dialog', { name: '命令面板' });
+    const search = within(palette).getByRole('searchbox', { name: '搜索命令' });
+    expect(document.activeElement).toBe(search);
+    fireEvent.change(search, { target: { value: '快捷键' } });
+    expect(within(palette).getByRole('option', { name: /打开快捷键总览/ })).toBeTruthy();
   });
   it.each(['busy', 'loading'] as const)('%s 时保存快捷键不调用模型', flag => {
     state.model[flag] = true;

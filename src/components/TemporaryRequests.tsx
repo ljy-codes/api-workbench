@@ -2,6 +2,7 @@ import type { CSSProperties } from 'react';
 import { Plus, Send, Zap } from 'lucide-react';
 import type { TemporaryRequestsModel } from '../hooks/useTemporaryRequests';
 import type { Preferences } from '../hooks/usePreferences';
+import { DEFAULT_PREFERENCES } from '../lib/preferences';
 import { TemporaryRequestEditor } from './RequestEditor';
 import { ResponsePanel } from './ResponsePanel';
 import { ResizeHandle } from './ResizeHandle';
@@ -61,7 +62,8 @@ function TemporaryRequestView({ model, preferences, updatePreferences }: Props) 
     <div className="request-pane"><TemporaryRequestEditor model={model} /></div>
     <ResizeHandle label={sideBySide ? '请求面板宽度' : '请求面板高度'} orientation={sideBySide ? 'vertical' : 'horizontal'}
       value={sideBySide ? editorWidth : editorHeight} min={sideBySide ? 300 : 160} max={sideBySide ? 900 : 720}
-      onChange={value => updatePreferences(sideBySide ? { editorWidth: value } : { editorHeight: value })} />
+      onChange={value => updatePreferences(sideBySide ? { editorWidth: value } : { editorHeight: value })}
+      onReset={() => updatePreferences(sideBySide ? { editorWidth: DEFAULT_PREFERENCES.editorWidth } : { editorHeight: DEFAULT_PREFERENCES.editorHeight })} />
     <ResponsePanel key={model.execution?.id ?? 'empty'} execution={model.execution} onClear={model.clearResponse}
       baseline={model.baseline} onSaveBaseline={model.saveBaseline} onClearBaseline={model.clearBaseline} temporary />
   </div>;

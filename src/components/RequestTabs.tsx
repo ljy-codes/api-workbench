@@ -70,6 +70,7 @@ export function RequestTabs({ model }: { model: Workbench }) {
     {!requests.length && <span className="hint">从左侧打开接口</span>}
     <div className="request-tab-actions">
       <small>关闭标签保留草稿与响应</small>
+      <button className="text-button restore-tab-button" aria-label="恢复最近关闭标签" title="恢复最近关闭标签 · Ctrl/Cmd+Shift+T" disabled={model.busy || model.loading || !model.canRestoreClosedTab} onClick={() => void model.restoreClosedTab()}>恢复</button>
       <div className="all-tabs-menu">
         <button className="all-tabs-trigger" aria-label="全部标签" aria-expanded={menu?.type === 'all'} disabled={model.busy || model.loading || !requests.length} onClick={event => {
           const rect = event.currentTarget.getBoundingClientRect();

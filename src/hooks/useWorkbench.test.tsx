@@ -220,6 +220,30 @@ describe('IPC、快照与并发', () => {
     expect(result.current.execution?.response?.status).toBe(200);
     expect(result.current.temporary[0].value).toBe('2');
   });
+  it('关闭普通接口后可按原位置恢复，恢复记录只在当前会话保留', async () => {
+    const { result } = renderHook(useWorkbench);
+    await waitFor(() => expect(result.current.request?.id).toBe('demo-list'));
+    await act(async () => result.current.selectRequest('demo-create'));
+    await act(async () => result.current.closeTab('demo-list'));
+
+    expect(result.current.openTabs).toEqual(['demo-create']);
+    expect(result.current.canRestoreClosedTab).toBe(true);
+    await act(async () => expect(await result.current.restoreClosedTab()).toBe(true));
+
+    expect(result.current.openTabs).toEqual(['demo-list', 'demo-create']);
+    expect(result.current.selectedId).toBe('demo-list');
+    expect(result.current.canRestoreClosedTab).toBe(false);
+  });
+  it('关闭标签自动保存失败时不写入恢复栈', async () => {
+    const { result } = renderHook(useWorkbench);
+    await waitFor(() => expect(result.current.request?.id).toBe('demo-list'));
+    act(() => result.current.updateRequest({ path: '/unsaved-close' }));
+    vi.mocked(api.save).mockRejectedValueOnce(new Error('disk-full'));
+    await act(async () => result.current.closeTab('demo-list'));
+
+    expect(result.current.openTabs).toEqual(['demo-list']);
+    expect(result.current.canRestoreClosedTab).toBe(false);
+  });
   it('复制 cURL 自动保存后仅复制原生脱敏结果且不发送', async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: { writeText } });

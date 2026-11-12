@@ -9,12 +9,14 @@ import type { ImportBundle, TransferSelection } from '../lib/transfer';
 import type { OpenApiPreview } from '../lib/openapi';
 import { appendHistory, historyRequestSnapshot, restoreHistoryDraft } from '../lib/request-history';
 import { executionDiagnostics } from '../lib/request-diagnostics';
+import { addClosedTabs, discardClosedTab, nextClosedTab, removeInvalidClosedTabs, type ClosedTab } from '../lib/closed-tabs';
 
 export type Execution = { id: string; requestId: string; environment: string; requestName: string; running: boolean; response?: ResponseData; error?: string; cancelRequested?: boolean; diagnostics?: RequestDiagnostics };
 export function useWorkbench() {
   const [workspace, setWorkspace] = useState<Workspace>(emptyWorkspace);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [openTabs, setOpenTabs] = useState<string[]>([]);
+  const [closedTabs, setClosedTabs] = useState<ClosedTab[]>([]);
   const [loading, setLoading] = useState(desktop);
   const [loadVersion, setLoadVersion] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -70,7 +72,7 @@ export function useWorkbench() {
       if (w !== loaded) setNotice('已将无引用的重复地址统一到环境矩阵；请保存全部修改，原有接口与变量引用保留。');
       putExecutions(() => ({}));
       setLoadVersion(version => version + 1);
-      setSelectedId(first); setOpenTabs(first ? [first] : []);
+      setSelectedId(first); setOpenTabs(first ? [first] : []); setClosedTabs([]);
     }
     catch (error) { setNotice(errorMessage(error)); }
     finally { lock.current = false; setBusy(false); setLoading(false); }
@@ -100,15 +102,16 @@ export function useWorkbench() {
     catch (e) { setNotice(errorMessage(e)); }
     finally { lock.current = false; setBusy(false); }
   };
-  const switchContext = async (action: () => void, change?: (w: Workspace) => Workspace) => {
-    if (lock.current || loading || confirmation) return;
+  const switchContext = async (action: () => void, change?: (w: Workspace) => Workspace): Promise<boolean> => {
+    if (lock.current || loading || confirmation) return false;
     lock.current = true; setBusy(true);
     try {
       const next = change ? change(wsRef.current) : wsRef.current;
       if (desktop && (dirtyRef.current || next !== wsRef.current)) await saveSnapshot(next);
       else if (next !== wsRef.current) acceptWorkspace(next, true);
       action(); setPreview(null);
-    } catch (error) { setNotice(`自动保存失败，已保留草稿并停止切换：${errorMessage(error)}`); }
+      return true;
+    } catch (error) { setNotice(`自动保存失败，已保留草稿并停止切换：${errorMessage(error)}`); return false; }
     finally { lock.current = false; setBusy(false); }
   };
   const project = workspace.projects.find(p => p.id === workspace.activeProjectId);
@@ -136,8 +139,15 @@ export function useWorkbench() {
   }, [selectedId, environment?.id, storedRequest?.id, loadVersion]);
   useEffect(() => {
     setOpenTabs(tabs => tabs.filter(id => workspace.requests.some(r => r.id === id)));
+    if (project?.id) {
+      setClosedTabs(tabs => removeInvalidClosedTabs(tabs, {
+        projectId: project.id,
+        requestIds: new Set(projectRequests.map(item => item.id)),
+        openTabs: new Set(openTabs),
+      }));
+    }
     if (selectedId && !storedRequest) { setSelectedId(null); setPreview(null); }
-  }, [workspace.requests, selectedId, storedRequest]);
+  }, [workspace.requests, selectedId, storedRequest, project?.id]);
   const updateRequest = (patch: Partial<RequestDefinition>) => {
     if (lock.current || !selectedId) return;
     try { mutate(w => updateEnvironmentRequest(w, selectedId, environment?.id ?? null, patch)); }
@@ -243,9 +253,16 @@ export function useWorkbench() {
   };
   const closeTabs = (ids: string[]) => {
     const projectRequestIds = new Set(projectRequests.map(request => request.id));
-    const closing = new Set(ids.filter(id => projectRequestIds.has(id)));
+    const closing = new Set(ids.filter(id => projectRequestIds.has(id) && openTabs.includes(id)));
     if (!closing.size) return;
     return switchContext(() => {
+      if (project?.id) {
+        const closed = openTabs
+          .map((requestId, index) => ({ requestId, index }))
+          .filter(item => closing.has(item.requestId))
+          .map(item => ({ projectId: project.id!, requestId: item.requestId, index: item.index }));
+        setClosedTabs(previous => addClosedTabs(previous, closed));
+      }
       const remaining = openTabs.filter(tab => !closing.has(tab));
       setOpenTabs(remaining);
       if (selectedId && closing.has(selectedId)) {
@@ -256,6 +273,35 @@ export function useWorkbench() {
   };
   const closeTab = (id: string) => closeTabs([id]);
   const closeAllTabs = () => closeTabs(projectRequests.map(request => request.id));
+  const availableClosedTabs = project?.id
+    ? removeInvalidClosedTabs(closedTabs, {
+      projectId: project.id,
+      requestIds: new Set(projectRequests.map(item => item.id)),
+      openTabs: new Set(openTabs),
+    })
+    : closedTabs;
+  const restoreClosedTab = async (): Promise<boolean> => {
+    if (!project?.id) return false;
+    const candidate = nextClosedTab(availableClosedTabs, project.id);
+    if (!candidate) {
+      if (availableClosedTabs.length !== closedTabs.length) setClosedTabs(availableClosedTabs);
+      return false;
+    }
+    return switchContext(() => {
+      setClosedTabs(previous => {
+        const next = nextClosedTab(previous, project.id!);
+        return next?.entry.requestId === candidate.entry.requestId && next.entry.index === candidate.entry.index ? next.rest : previous;
+      });
+      setOpenTabs(tabs => {
+        const next = tabs.slice();
+        const index = Math.max(0, Math.min(candidate.entry.index, next.length));
+        if (!next.includes(candidate.entry.requestId)) next.splice(index, 0, candidate.entry.requestId);
+        return next;
+      });
+      setSelectedId(candidate.entry.requestId);
+      setPreview(null);
+    });
+  };
   const runLocalAction = async (action: () => Promise<void>, nativeOnly = false) => {
     if (lock.current || confirmation) return false;
     if (nativeOnly && !desktop) { setNotice('此功能需要桌面模式；浏览器仅保留内存草稿。'); return false; }
@@ -379,13 +425,17 @@ export function useWorkbench() {
     deleteHistory: (id: string) => putHistory(historyRef.current.filter(entry => entry.id !== id)),
     confirmation, setConfirmation, confirm, mutate, updateRequest, save, execute, cancel, preview, load, clearResponse, cleanData,
     openTabs, closeTab, closeTabs, closeAllTabs, copyCurl: () => execute(false, true), importProjectText, importCurlText, readProject, writeProject, readTransferFile, importSelected, applyOpenApi, writeSelected, pickFile, backup,
+    closedTabs: availableClosedTabs, canRestoreClosedTab: !!project?.id && availableClosedTabs.some(entry => entry.projectId === project.id), restoreClosedTab,
     hasRunning: Object.values(executions).some(execution => execution.running),
     execution: selectedKey ? executions[selectedKey] : undefined,
     temporary: selectedKey ? temporary[selectedKey] ?? [] : [],
     setTemporary: (pairs: Pair[]) => { if (!lock.current && selectedKey) { setTemporary(prev => ({ ...prev, [selectedKey]: pairs })); setPreview(null); } },
     selectRequest: (id: string) => {
       if (selectedId === id || !projectRequests.some(r => r.id === id)) return;
-      return switchContext(() => { setSelectedId(id); setOpenTabs(tabs => tabs.includes(id) ? tabs : [...tabs, id]); });
+      return switchContext(() => {
+        if (project?.id) setClosedTabs(previous => discardClosedTab(previous, project.id!, id));
+        setSelectedId(id); setOpenTabs(tabs => tabs.includes(id) ? tabs : [...tabs, id]);
+      });
     },
     selectProject: (id: string) => {
       if (id === project?.id || !workspace.projects.some(p => p.id === id)) return;

@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 
-export function ResizeHandle({ label, value, min, max, onChange, orientation, disabled = false }: {
-  label: string; value: number; min: number; max: number; onChange: (value: number) => void; orientation: 'vertical' | 'horizontal'; disabled?: boolean;
+export function ResizeHandle({ label, value, min, max, onChange, onReset, orientation, disabled = false }: {
+  label: string; value: number; min: number; max: number; onChange: (value: number) => void; onReset?: () => void; orientation: 'vertical' | 'horizontal'; disabled?: boolean;
 }) {
   const drag = useRef<{ start: number; value: number } | null>(null);
   const clamp = (next: number) => onChange(Math.max(min, Math.min(max, next)));
@@ -23,6 +23,7 @@ export function ResizeHandle({ label, value, min, max, onChange, orientation, di
     onPointerMove={e => {
       if (!disabled && drag.current) clamp(drag.current.value + (orientation === 'vertical' ? e.clientX : e.clientY) - drag.current.start);
     }}
+    onDoubleClick={() => { if (!disabled) onReset?.(); }}
     onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }} onLostPointerCapture={() => { drag.current = null; }}
   />;
 }
