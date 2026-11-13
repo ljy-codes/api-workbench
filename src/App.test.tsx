@@ -11,7 +11,8 @@ afterEach(cleanup);
 describe('中文工作台浏览器预览', () => {
   it('明确仅内存预览且没有伪造响应', () => {
     render(<App />);
-    expect(screen.getByText('EnvDock')).toBeTruthy();
+    expect(screen.getByRole('button', { name: '返回主页' })).toBeTruthy();
+    expect(screen.queryByText('EnvDock')).toBeNull();
     expect(screen.getByText('仅内存预览，桌面版才可保存和发送')).toBeTruthy();
     expect(screen.getByRole('button', { name: '载入内存示例' })).toBeTruthy();
     expect(screen.queryByText('200 OK')).toBeNull();

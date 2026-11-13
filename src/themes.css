@@ -70,6 +70,15 @@
   --tone-violet: #c7b5e2;
   --tone-violet-bg: #383346;
   --card-shadow: 0 2px 8px #00000012;
+  --chrome-bg: #1c2129;
+  --chrome-panel: #202630;
+  --chrome-border: #343d4a;
+  --chrome-text: #a5b1c1;
+  --chrome-muted: #788697;
+  --chrome-active: #2b3440;
+  --chrome-active-text: #c4d0dd;
+  --chrome-control: #222a34;
+  --content-border: #4b5f71;
 }
 
 :root[data-theme=light] {
@@ -140,6 +149,15 @@
   --tone-violet: #75608e;
   --tone-violet-bg: #f4effa;
   --card-shadow: 0 2px 8px #314b6510;
+  --chrome-bg: #e4ebf0;
+  --chrome-panel: #edf2f5;
+  --chrome-border: #cbd6de;
+  --chrome-text: #617387;
+  --chrome-muted: #7b8c9c;
+  --chrome-active: #dbe6ee;
+  --chrome-active-text: #3e5d79;
+  --chrome-control: #f4f7f9;
+  --content-border: #b4c5d1;
 }
 
 /* Misty sage chrome and warm paper keep the data, rather than the shell, vivid. */
@@ -211,6 +229,15 @@
   --tone-violet: #735c85;
   --tone-violet-bg: #eee8f0;
   --card-shadow: 0 2px 8px #34483d0d;
+  --chrome-bg: #dde5e1;
+  --chrome-panel: #e6ece8;
+  --chrome-border: #c0ccc5;
+  --chrome-text: #5c7067;
+  --chrome-muted: #71817a;
+  --chrome-active: #d4e0da;
+  --chrome-active-text: #3e5b4d;
+  --chrome-control: #f1f4f0;
+  --content-border: #aebeb4;
 }
 
 /* Midtone slate lifts both the chrome and editor without using a white canvas. */
@@ -282,6 +309,15 @@
   --tone-violet: #f0d3ff;
   --tone-violet-bg: #59546c;
   --card-shadow: 0 2px 8px #2530441f;
+  --chrome-bg: #455264;
+  --chrome-panel: #4b586a;
+  --chrome-border: #607086;
+  --chrome-text: #c4d0df;
+  --chrome-muted: #acbacb;
+  --chrome-active: #56677e;
+  --chrome-active-text: #f0f5fb;
+  --chrome-control: #4a5668;
+  --content-border: #8192a8;
 }
 
 /* CodeMirror's injected dark extension keeps using these theme-aware colors. */
@@ -396,7 +432,6 @@
 :root .rail-button[data-page].active { color: var(--rail-color); background: var(--rail-bg); }
 :root .rail-button[data-page].active:before { background: var(--rail-color); }
 :root :is(.topbar, .sidebar, .statusbar) { background: var(--surface-subtle); }
-:root .version-label { color: var(--muted); border-color: var(--border); }
 :root .main-content { background: var(--panel); }
 
 :root .color-dot { border-color: #ffffffb3; box-shadow: 0 0 0 1px #66708580; }
@@ -618,6 +653,98 @@
 :root .theme-soft .theme-thumbnail em { background: #4c6580; }
 :root .theme-soft .theme-thumbnail em:nth-child(2) { background: #8a561a; }
 :root .theme-soft .theme-thumbnail em:nth-child(3) { background: #24705f; }
+
+/* Keep the workbench chrome quiet so request and response bodies stay primary. */
+:root :is(.rail, .topbar, .sidebar, .statusbar, .request-tabs) {
+  background: var(--chrome-bg);
+  border-color: var(--chrome-border);
+}
+:root .rail {
+  color: var(--chrome-muted);
+}
+:root .rail .brand-mark {
+  opacity: .62;
+  filter: saturate(.45);
+  background: transparent;
+  border-color: transparent;
+}
+:root .rail .brand-mark:hover:not(:disabled),
+:root .rail .brand-mark[aria-current=page] {
+  background: var(--chrome-active);
+  border-color: var(--chrome-border);
+}
+:root :is(.rail-button, .rail-bottom) {
+  color: var(--chrome-muted);
+}
+:root .rail-button[data-page],
+:root .rail-button[data-page].active {
+  --rail-color: var(--chrome-active-text);
+  --rail-bg: var(--chrome-active);
+}
+:root .rail-button[data-page].active {
+  color: var(--chrome-active-text);
+  background: var(--chrome-active);
+}
+:root .rail-button[data-page].active:before {
+  background: var(--chrome-active-text);
+}
+:root .topbar {
+  color: var(--chrome-text);
+}
+:root .topbar .field-caption,
+:root .topbar .save-state,
+:root .topbar .icon-button {
+  color: var(--chrome-muted);
+}
+:root .topbar .save-state.unsaved {
+  color: var(--warning);
+}
+:root .topbar .color-select-trigger {
+  background: var(--chrome-control);
+  border-color: var(--chrome-border);
+  color: var(--chrome-text);
+}
+:root .topbar .layout-tools {
+  border-color: var(--chrome-border);
+}
+:root .sidebar-title,
+:root .sidebar-actions,
+:root .search-field,
+:root .service-node,
+:root .folder-node,
+:root .request-node {
+  color: var(--chrome-text);
+}
+:root .search-field {
+  background: var(--chrome-panel);
+  border-color: var(--chrome-border);
+}
+:root :is(.sidebar-title small, .service-node small, .sidebar-empty, .sidebar-bottom, .sidebar-bottom .mono) {
+  color: var(--chrome-muted);
+}
+:root .request-node.selected {
+  background: var(--chrome-active);
+  color: var(--chrome-active-text);
+  box-shadow: inset 2px 0 var(--chrome-active-text);
+}
+:root .request-tab button,
+:root .request-tabs .request-tab .tab-close {
+  color: var(--chrome-muted);
+}
+:root .request-tab.active {
+  background: var(--chrome-active);
+  box-shadow: inset 0 -2px var(--chrome-active-text);
+}
+:root .statusbar {
+  color: var(--chrome-muted);
+}
+:root .statusbar .status-dot {
+  opacity: .58;
+}
+:root .request-pane .editor-content.body-content,
+:root .response-panel .response-code {
+  box-shadow: inset 0 0 0 1px var(--content-border);
+}
 :root .theme-dark .theme-thumbnail { background: #282d36; }
 :root .theme-dark .theme-thumbnail > i { background: #22262e; }
 :root .theme-dark .theme-thumbnail em { background: #a9cbe3; }

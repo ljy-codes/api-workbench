@@ -40,6 +40,16 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe('颜色、快捷键和环境 UI 边界', () => {
+  it('工作台隐藏品牌标题但保留请求响应主区域和项目环境控制', () => {
+    render(<App />);
+    expect(screen.queryByText('EnvDock')).toBeNull();
+    expect(screen.queryByText('1.7.0')).toBeNull();
+    expect(screen.getByRole('combobox', { name: '当前项目' })).toBeTruthy();
+    expect(screen.getByRole('combobox', { name: '当前环境' })).toBeTruthy();
+    expect(document.querySelector('.request-pane')).toBeTruthy();
+    expect(document.querySelector('.response-panel')).toBeTruthy();
+  });
+
   it('底部显示作者，设置中可切换主题和布局', async () => {
     render(<App />);
     expect(screen.getByText('著作:lxs').closest('footer')).toBeTruthy();
