@@ -87,6 +87,52 @@ fn strip_json_comments(input: &str) -> Result<String, String> {
     Ok(output)
 }
 
+/// Remove commas that are followed by only whitespace before a closing
+/// object/array delimiter. This mirrors the editor formatter's permissive
+/// JSON handling and is required after a commented-out final field leaves a
+/// trailing comma behind.
+fn strip_trailing_commas(input: &str) -> String {
+    let chars: Vec<char> = input.chars().collect();
+    let mut output = String::with_capacity(input.len());
+    let mut in_string = false;
+    let mut escaped = false;
+    let mut index = 0;
+    while index < chars.len() {
+        let character = chars[index];
+        if in_string {
+            output.push(character);
+            if escaped {
+                escaped = false;
+            } else if character == '\\' {
+                escaped = true;
+            } else if character == '"' {
+                in_string = false;
+            }
+            index += 1;
+            continue;
+        }
+        if character == '"' {
+            in_string = true;
+            output.push(character);
+            index += 1;
+            continue;
+        }
+        if character == ',' {
+            let mut next = index + 1;
+            while next < chars.len() && chars[next].is_whitespace() {
+                next += 1;
+            }
+            if matches!(chars.get(next), Some('}') | Some(']')) {
+                index += 1;
+                continue;
+            }
+        }
+        output.push(character);
+        index += 1;
+    }
+    output
+}
+
 pub(super) fn prepare(
     input: BodyInput<'_>,
     headers: &mut HeaderMap,
@@ -100,7 +146,7 @@ pub(super) fn prepare(
         "none" => None,
         "text" => Some(render(input.text)?),
         "json" => {
-            let normalized = strip_json_comments(input.text)?;
+            let normalized = strip_trailing_commas(&strip_json_comments(input.text)?);
             let mut value: Value = serde_json::from_str(&normalized)
                 .map_err(|_| "JSON 正文无效；占位符只能放在 JSON 字符串值内")?;
             render_json(&mut value)?;
