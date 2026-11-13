@@ -14,6 +14,7 @@ import { ColorSelect } from './components/ColorSelect';
 import { ENVIRONMENT_COLOR, PROJECT_COLOR } from './components/ColorPicker';
 import { VariablesEditor } from './components/VariablesEditor';
 import { Dashboard } from './components/Dashboard';
+import { WindowControls } from './components/WindowControls';
 
 import { ResizeHandle } from './components/ResizeHandle';
 import { RequestTabs } from './components/RequestTabs';
@@ -154,7 +155,9 @@ export default function App() {
         <div className="project-select" hidden={isTemporary}><span className="field-caption">项目</span><ColorSelect label="当前项目" value={model.project?.id ?? ''} options={model.workspace.projects.map(p => ({ value: p.id, label: p.name, color: p.color }))} onChange={model.selectProject} disabled={model.busy || model.loading} placeholder={hasProjects ? '请选择项目' : '尚未创建项目'} fallbackColor={PROJECT_COLOR} /></div>
         <div className="environment-select" hidden={isTemporary}><ColorSelect key={model.project?.id ?? 'none'} label="当前环境" value={model.environment?.id ?? ''} options={[{ value: '', label: '请选择环境' }, ...model.workspace.environments.filter(e => e.projectId === model.project?.id).map(e => ({ value: e.id, label: e.name, color: e.color, isProduction: e.isProduction }))]} onChange={model.selectEnvironment} disabled={!model.project || model.busy || model.loading} fallbackColor={ENVIRONMENT_COLOR} /></div>
         {isTemporary && <span className="temporary-context">临时调试 · 无需配置环境</span>}
+        <div className="topbar-drag-region" data-tauri-drag-region />
         <div className="topbar-actions"><div className="layout-tools"><button className="icon-button" hidden={isTemporary} aria-label={sidebarCollapsed ? '展开侧栏' : '收起侧栏'} title={sidebarCollapsed ? '展开侧栏' : '收起侧栏'} aria-expanded={!sidebarCollapsed} onClick={() => updatePreferences({ sidebarCollapsed: !sidebarCollapsed })}>{sidebarCollapsed ? <PanelLeftOpen size={17} /> : <PanelLeftClose size={17} />}</button><button className="icon-button" aria-label={sideBySide ? '上下分屏' : '左右分屏'} title={sideBySide ? '切换为上下分屏' : '切换为左右分屏'} onClick={() => updatePreferences({ layout: sideBySide ? 'stacked' : 'side-by-side' })}>{sideBySide ? <Rows2 size={17} /> : <Columns2 size={17} />}</button><button className="icon-button" aria-label="打开命令面板" title={`命令面板 · ${COMMAND_PALETTE_SHORTCUT.map(key => key === 'Mod' ? 'Ctrl/Cmd' : key).join(' ')}`} onClick={openCommandPalette}><Command size={17} /></button></div><span className={`save-state ${!isTemporary && model.dirty ? 'unsaved' : ''}`}>{isTemporary ? '临时会话' : model.busy ? '处理中…' : model.dirty ? '未保存修改' : desktop ? '已保存' : '内存会话'}</span>{!isTemporary && <button className="icon-button" aria-label="保存全部修改" title="保存全部修改 · Ctrl/Cmd+S" disabled={!desktop || model.busy || model.loading} onClick={() => void model.save()}><Save size={17} /></button>}</div>
+        <WindowControls />
       </header>
       {!desktop && <div className="preview-banner"><FlaskConical size={14} /><span>仅内存预览，桌面版才可保存和发送</span><span className="preview-banner-detail">刷新后数据清空 · 不连接网络</span></div>}
       <div className="workspace-layout" style={{ '--sidebar-width': `${sidebarWidth}px` } as CSSProperties}>

@@ -50,6 +50,18 @@ describe('颜色、快捷键和环境 UI 边界', () => {
     expect(document.querySelector('.response-panel')).toBeTruthy();
   });
 
+  it('桌面版将窗口控制放在工作台工具栏最右侧', () => {
+    render(<App />);
+    const topbar = document.querySelector('header.topbar');
+    const actions = topbar?.querySelector('.topbar-actions');
+    const controls = topbar?.querySelector('.window-controls');
+    expect(controls).toBeTruthy();
+    expect(within(controls as HTMLElement).getByRole('button', { name: '最小化窗口' })).toBeTruthy();
+    expect(within(controls as HTMLElement).getByRole('button', { name: '最大化或还原窗口' })).toBeTruthy();
+    expect(within(controls as HTMLElement).getByRole('button', { name: '关闭窗口' })).toBeTruthy();
+    expect(actions && controls && (actions.compareDocumentPosition(controls) & Node.DOCUMENT_POSITION_FOLLOWING)).toBeTruthy();
+  });
+
   it('底部显示作者，设置中可切换主题和布局', async () => {
     render(<App />);
     expect(screen.getByText('著作:lxs').closest('footer')).toBeTruthy();

@@ -691,6 +691,20 @@
 :root .topbar {
   color: var(--chrome-text);
 }
+:root .window-controls {
+  border-color: var(--chrome-border);
+}
+:root .window-control {
+  color: var(--chrome-muted);
+}
+:root .window-control:hover:not(:disabled) {
+  background: var(--chrome-active);
+  color: var(--chrome-active-text);
+}
+:root .window-control-close:hover:not(:disabled) {
+  background: var(--danger);
+  color: #fff;
+}
 :root .topbar .field-caption,
 :root .topbar .save-state,
 :root .topbar .icon-button {

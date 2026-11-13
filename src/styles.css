@@ -66,6 +66,11 @@ kbd { font: 10px "Segoe UI", sans-serif; border: 1px solid #3b3d4d; border-radiu
 .color-select-trigger > svg { flex-shrink: 0; margin-left: auto; }
 .environment-select .color-select-trigger { max-width: 210px; font-size: 12px; }
 .color-select .production-tag { margin-left: 0; flex-shrink: 0; }
+.topbar-drag-region { flex: 1; min-width: 12px; height: 100%; cursor: move; }
+.window-controls { display: flex; align-self: stretch; height: 100%; margin-right: -12px; border-left: 1px solid var(--border); }
+.window-control { width: 42px; height: 100%; padding: 0; border: 0; border-radius: 0; background: transparent; color: var(--muted); }
+.window-control:hover:not(:disabled) { background: #2a2b39; border-color: transparent; color: var(--text); }
+.window-control-close:hover:not(:disabled) { background: #a43f53; color: #fff; }
 .color-select-list { position: absolute; top: calc(100% + 6px); left: 0; min-width: 100%; width: max-content; max-width: min(380px, 70vw); max-height: 300px; overflow-y: auto; z-index: 20; padding: 5px; border: 1px solid #484857; border-radius: 7px; background: #20212b; color: #dedee9; box-shadow: 0 12px 30px #0008; }
 .color-select-option { display: flex; align-items: center; gap: 8px; padding: 9px 10px; border: 1px solid transparent; border-radius: 4px; cursor: pointer; min-height: 36px; }
 .color-select-option[data-active=true] { background: #343047; border-color: #a596ff; }
@@ -473,6 +478,7 @@ kbd { font: 10px "Segoe UI", sans-serif; border: 1px solid #3b3d4d; border-radiu
 @media (max-width: 1000px), (max-height: 700px) {
   .topbar { padding-inline: 9px; gap: 7px; }
   .topbar-actions { gap: 3px; }
+  .window-controls { margin-right: -9px; }
   .command-palette { margin-top: 6vh; }
   .command-palette-list { max-height: 48vh; }
   .command-palette-footer { gap: 9px; padding-inline: 12px; }

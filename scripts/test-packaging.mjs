@@ -24,11 +24,12 @@ test('installer and portable delivery directories include the project license', 
   }
 });
 
-test('EnvDock current-user NSIS distribution retains the existing app identity', () => {
+test('EnvDock current-user NSIS distribution retains identity without native decorations', () => {
   assert.equal(config.productName, 'EnvDock');
   assert.equal(config.mainBinaryName, 'EnvDock');
   assert.equal(config.identifier, 'local.apiworkbench.desktop');
-  assert.equal(config.app.windows[0].title, 'EnvDock · API Workbench');
+  assert.equal(config.app.windows[0].title, '');
+  assert.equal(config.app.windows[0].decorations, false);
   assert.equal(config.bundle.active, true);
   assert.deepEqual(config.bundle.targets, ['nsis']);
   assert.equal(config.bundle.windows.nsis.installMode, 'currentUser');

@@ -14,7 +14,8 @@
     "windows": [
       {
         "label": "main",
-        "title": "EnvDock · API Workbench",
+        "title": "",
+        "decorations": false,
         "width": 1440,
         "height": 940,
         "minWidth": 1000,
