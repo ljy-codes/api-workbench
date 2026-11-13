@@ -16,7 +16,8 @@ use models::{
 use serde::Serialize;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tauri::{Manager, State};
+use std::time::{SystemTime, UNIX_EPOCH};
+use tauri::{Manager, State, WebviewWindowBuilder};
 use tauri_plugin_dialog::DialogExt;
 
 struct AppState {
@@ -364,6 +365,56 @@ fn data_directory(app: &tauri::App) -> Result<PathBuf, Box<dyn std::error::Error
     }
 }
 
+fn build_main_window(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Error>> {
+    let config = app
+        .config()
+        .app
+        .windows
+        .iter()
+        .find(|window| window.label == "main")
+        .ok_or("缺少 main 窗口配置")?;
+    let local_data_dir = app.path().app_local_data_dir()?;
+    let primary_data_dir = local_data_dir.join("EBWebView");
+    let primary_result = WebviewWindowBuilder::from_config(app.handle(), config)
+        .map_err(|error| format!("读取主窗口配置失败：{error}"))?
+        .data_directory(primary_data_dir.clone())
+        .build();
+
+    if primary_result.is_ok() {
+        return Ok(());
+    }
+
+    let primary_error = primary_result
+        .err()
+        .expect("WebView2 创建结果已确认失败");
+    let timestamp = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|duration| duration.as_nanos())
+        .unwrap_or_default();
+    let recovery_data_dir = local_data_dir.join(format!(
+        "EBWebView-recovery-{}-{}",
+        std::process::id(),
+        timestamp
+    ));
+    let recovery_result = WebviewWindowBuilder::from_config(app.handle(), config)
+        .map_err(|error| format!("读取恢复窗口配置失败：{error}"))?
+        .data_directory(recovery_data_dir.clone())
+        .build();
+
+    recovery_result
+        .map(|_| ())
+        .map_err(|recovery_error| {
+            format!(
+                "WebView2 创建失败。默认目录 {}：{}；恢复目录 {}：{}",
+                primary_data_dir.display(),
+                primary_error,
+                recovery_data_dir.display(),
+                recovery_error
+            )
+            .into()
+        })
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -384,6 +435,7 @@ pub fn run() {
                 executions: Executions::default(),
                 data_dir,
             });
+            build_main_window(app)?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

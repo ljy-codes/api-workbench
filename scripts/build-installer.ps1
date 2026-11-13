@@ -17,6 +17,10 @@ try {
     $name = "EnvDock-$version-windows-x64-setup.exe"
     Copy-Item -LiteralPath $bundle -Destination (Join-Path $output $name)
     Copy-Item -LiteralPath (Join-Path $root 'README.md') -Destination (Join-Path $output '使用说明.md')
+    $releaseNotes = Join-Path $root "docs\releases\v$version.md"
+    if (Test-Path -LiteralPath $releaseNotes) {
+        Copy-Item -LiteralPath $releaseNotes -Destination (Join-Path $output '更新说明.md')
+    }
     Copy-Item -LiteralPath (Join-Path $root 'LICENSE') -Destination (Join-Path $output 'LICENSE.txt')
     Copy-Item -LiteralPath (Join-Path $root 'public\third-party-notices.txt') -Destination (Join-Path $output '第三方许可-YAML.txt')
     Copy-Item -LiteralPath (Join-Path $root 'scripts\migrate-local-data.ps1') -Destination $output

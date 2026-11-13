@@ -38,6 +38,24 @@ test('EnvDock current-user NSIS distribution retains identity without native dec
   assert.deepEqual(config.bundle.windows.nsis.languages, ['SimpChinese', 'English']);
 });
 
+test('custom desktop chrome has the window permissions it invokes', () => {
+  const capability = JSON.parse(read('src-tauri/capabilities/default.json'));
+  for (const permission of [
+    'core:window:allow-close',
+    'core:window:allow-minimize',
+    'core:window:allow-toggle-maximize',
+    'core:window:allow-start-dragging',
+  ]) {
+    assert.ok(capability.permissions.includes(permission), `missing ${permission}`);
+  }
+});
+
+test('main window is created by the startup recovery path', () => {
+  const config = JSON.parse(read('src-tauri/tauri.conf.json'));
+  assert.equal(config.app.windows[0].label, 'main');
+  assert.equal(config.app.windows[0].create, false);
+});
+
 test('downgrade guard runs before interactive uninstall and before silent overwrite', () => {
   const hooks = read('src-tauri/installer-hooks.nsh');
   assert.match(hooks, /MUI_CUSTOMFUNCTION_GUIINIT EnvDockCheckInstalledVersion/);
