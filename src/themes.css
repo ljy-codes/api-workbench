@@ -79,6 +79,9 @@
   --chrome-active-text: #c4d0dd;
   --chrome-control: #222a34;
   --content-border: #4b5f71;
+  --separator: #53606d;
+  --separator-hover: #7894ad;
+  --separator-focus: #95a8c2;
 }
 
 :root[data-theme=light] {
@@ -158,166 +161,92 @@
   --chrome-active-text: #3e5d79;
   --chrome-control: #f4f7f9;
   --content-border: #b4c5d1;
+  --separator: #b4c5d1;
+  --separator-hover: #7998b5;
+  --separator-focus: #617793;
 }
 
-/* Misty sage chrome and warm paper keep the data, rather than the shell, vivid. */
-:root[data-theme=soft] {
-  color-scheme: light;
-  --bg: #e8eceb;
-  --panel: #f7f8f4;
-  --panel-raised: #e2e9e5;
-  --border: #c6d0ca;
-  --text: #33463e;
-  --text-secondary: #485b54;
-  --muted: #52615b;
-  --accent: #49645b;
-  --nav-requests: #526a7f;
-  --nav-environments: #75617f;
-  --nav-variables: #496d60;
-  --nav-manage: #7b603c;
-  --cyan: #24705f;
-  --danger: #a74250;
-  --surface-subtle: #dee6e3;
-  --control-bg: #fbfcf9;
-  --control-border: #6f8077;
-  --button-bg: #e5ebe7;
-  --button-hover: #d6dfd9;
-  --accent-soft: #dce5df;
-  --accent-border: #6f8077;
-  --selection-text: #334e43;
-  --primary-bg: #dce6df;
-  --primary-hover: #cedbd2;
-  --primary-text: #355347;
-  --success: #24705f;
-  --success-bg: #e0eee6;
-  --warning: #805c20;
-  --warning-bg: #f5ecd8;
-  --danger-bg: #f5e5e7;
-  --danger-border: #c7979e;
-  --danger-solid: #a74250;
-  --danger-hover: #943845;
-  --focus-ring: #59786b;
-  --overlay-shadow: 0 12px 30px #34483d1f;
-  --dialog-shadow: 0 26px 90px #34483d30;
-  --dialog-backdrop: #34483d59;
-  --scrollbar: #b3c1b8;
-  --scrollbar-hover: #8a9e91;
-  --code-bg: #f7f8f4;
-  --request-code-bg: #f7f8f4;
-  --response-code-bg: #edf1ec;
-  --code-text: #34483f;
-  --code-gutter: #576960;
-  --code-active-line: #edf1eb;
-  --code-key: #4c6580;
-  --code-string: #8a561a;
-  --code-number: #24705f;
-  --code-literal: #795a8e;
-  --code-punctuation: #5a6861;
-  --code-comment: #708078;
-  --code-selection: #e0e9e3;
-  --code-search-bg: #efdaa5;
-  --code-search-text: #624714;
-  --method-get: #24705f;
-  --method-post: #805c20;
-  --method-write: #4c6580;
-  --tone-blue: #4c6580;
-  --tone-blue-bg: #e8eef2;
-  --tone-teal: #376653;
-  --tone-teal-bg: #e4eee8;
-  --tone-amber: #805c20;
-  --tone-amber-bg: #f3ecdf;
-  --tone-violet: #735c85;
-  --tone-violet-bg: #eee8f0;
-  --card-shadow: 0 2px 8px #34483d0d;
-  --chrome-bg: #dde5e1;
-  --chrome-panel: #e6ece8;
-  --chrome-border: #c0ccc5;
-  --chrome-text: #5c7067;
-  --chrome-muted: #71817a;
-  --chrome-active: #d4e0da;
-  --chrome-active-text: #3e5b4d;
-  --chrome-control: #f1f4f0;
-  --content-border: #aebeb4;
-}
-
-/* Midtone slate lifts both the chrome and editor without using a white canvas. */
-:root[data-theme=dusk] {
+/* Graphite black keeps the shell quiet while request and response bodies remain distinct. */
+:root[data-theme=graphite] {
   color-scheme: dark;
-  --bg: #4c586a;
-  --panel: #505d70;
-  --panel-raised: #536174;
-  --border: #6c7a8f;
-  --text: #f1f4f9;
-  --text-secondary: #e3e9f2;
-  --muted: #dbe3ef;
-  --accent: #c4ddff;
-  --nav-requests: #c4ddff;
-  --nav-environments: #f0d3ff;
-  --nav-variables: #b4edd8;
-  --nav-manage: #ffe0ad;
-  --cyan: #b4edd8;
-  --danger: #ffc8d3;
-  --surface-subtle: #465264;
-  --control-bg: #495669;
-  --control-border: #b6c3d6;
-  --button-bg: #4c596c;
-  --button-hover: #536174;
-  --accent-soft: #4a5d76;
-  --accent-border: #b1c8e5;
-  --selection-text: #edf4ff;
-  --primary-bg: #365172;
-  --primary-hover: #3e5a7c;
-  --primary-text: #f1f4f9;
-  --success: #b4edd8;
-  --success-bg: #425c55;
-  --warning: #ffe0ad;
-  --warning-bg: #60584f;
-  --danger-bg: #604d5b;
-  --danger-border: #d3a6b7;
-  --danger-solid: #a23f58;
-  --danger-hover: #91354d;
-  --focus-ring: #c4ddff;
-  --overlay-shadow: 0 12px 30px #202b3b40;
-  --dialog-shadow: 0 26px 90px #202b3b59;
-  --dialog-backdrop: #26334580;
-  --scrollbar: #8190a6;
-  --scrollbar-hover: #adbbcf;
-  --code-bg: #455163;
-  --request-code-bg: #455163;
-  --response-code-bg: #3f4b5c;
-  --code-text: #f1f4f9;
-  --code-gutter: #d0dcec;
-  --code-active-line: #4a586b;
-  --code-key: #c4ddff;
-  --code-string: #ffe0ad;
-  --code-number: #b4edd8;
-  --code-literal: #f0d3ff;
-  --code-punctuation: #d0dcec;
-  --code-comment: #b4c0d2;
-  --code-selection: #526074;
-  --code-search-bg: #ffe0ad;
-  --code-search-text: #47351f;
-  --method-get: #b4edd8;
-  --method-post: #ffe0ad;
-  --method-write: #c4ddff;
-  --tone-blue: #c4ddff;
-  --tone-blue-bg: #48586d;
-  --tone-teal: #b4edd8;
-  --tone-teal-bg: #485d60;
-  --tone-amber: #ffe0ad;
-  --tone-amber-bg: #60584f;
-  --tone-violet: #f0d3ff;
-  --tone-violet-bg: #59546c;
-  --card-shadow: 0 2px 8px #2530441f;
-  --chrome-bg: #455264;
-  --chrome-panel: #4b586a;
-  --chrome-border: #607086;
-  --chrome-text: #c4d0df;
-  --chrome-muted: #acbacb;
-  --chrome-active: #56677e;
-  --chrome-active-text: #f0f5fb;
-  --chrome-control: #4a5668;
-  --content-border: #8192a8;
+  --bg: #171717;
+  --panel: #232323;
+  --panel-raised: #2b2b2b;
+  --border: #3b3b3b;
+  --text: #e2e0db;
+  --text-secondary: #c7c5bf;
+  --muted: #aaa8a1;
+  --accent: #c7c3b8;
+  --nav-requests: #aabfe2;
+  --nav-environments: #c2b6d8;
+  --nav-variables: #9ec9b5;
+  --nav-manage: #d0b37e;
+  --cyan: #83d7ba;
+  --danger: #ef9aa8;
+  --surface-subtle: #1d1d1d;
+  --control-bg: #282828;
+  --control-border: #65635e;
+  --button-bg: #2a2a2a;
+  --button-hover: #333333;
+  --accent-soft: #353635;
+  --accent-border: #8e8a7d;
+  --selection-text: #f2efe8;
+  --primary-bg: #5a5a50;
+  --primary-hover: #6b6a5e;
+  --primary-text: #ffffff;
+  --success: #83d7ba;
+  --success-bg: #1f3831;
+  --warning: #edc276;
+  --warning-bg: #3a3223;
+  --danger-bg: #3c272e;
+  --danger-border: #79515b;
+  --danger-solid: #a84257;
+  --danger-hover: #bd4e65;
+  --focus-ring: #b8b3a6;
+  --overlay-shadow: 0 12px 30px #000000aa;
+  --dialog-shadow: 0 26px 110px #000000aa;
+  --dialog-backdrop: #000000bb;
+  --scrollbar: #4b4a47;
+  --scrollbar-hover: #67655f;
+  --code-bg: #141923;
+  --request-code-bg: #141923;
+  --response-code-bg: #2b2a28;
+  --code-text: #e2e0db;
+  --code-gutter: #aaa8a1;
+  --code-active-line: #20242c;
+  --code-key: #7eb4ff;
+  --code-string: #ffbf78;
+  --code-number: #82e0ae;
+  --code-literal: #ff9db5;
+  --code-punctuation: #b7bcc8;
+  --code-comment: #8f96a5;
+  --code-selection: #4a4c4e;
+  --code-search-bg: #f0cc7a;
+  --code-search-text: #2e281c;
+  --method-get: #83d7ba;
+  --method-post: #edc276;
+  --method-write: #8db9ff;
+  --tone-blue: #aabfe2;
+  --tone-blue-bg: #283142;
+  --tone-teal: #9ec9b5;
+  --tone-teal-bg: #263b34;
+  --tone-amber: #d0b37e;
+  --tone-amber-bg: #403524;
+  --tone-violet: #c2b6d8;
+  --tone-violet-bg: #373044;
+  --card-shadow: 0 2px 8px #00000040;
+  --chrome-bg: #141414;
+  --chrome-panel: #1c1c1c;
+  --chrome-border: #2e2e2e;
+  --chrome-text: #a9a7a0;
+  --chrome-muted: #77766f;
+  --chrome-active: #292929;
+  --chrome-active-text: #d7d4cc;
+  --chrome-control: #202020;
+  --content-border: #363634;
+  --separator: #4b4a47;
+  --separator-hover: #6b6962;
+  --separator-focus: #b8b3a6;
 }
 
 /* CodeMirror's injected dark extension keeps using these theme-aware colors. */
@@ -608,7 +537,6 @@
 :root :is(.dialog-header, .dialog-footer) { border-color: var(--border); }
 :root .confirm-message { color: var(--text-secondary); }
 :root .statusbar { color: var(--muted); }
-:root[data-theme=soft] :is(.topbar, .statusbar, .request-tabs) { background: var(--bg); }
 :root .footer-divider { color: var(--muted); }
 :root .toast {
   background: var(--panel-raised);
@@ -637,22 +565,17 @@
   color: var(--accent);
 }
 :root .settings-content .theme-options { grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)); }
-:root .theme-dusk .theme-thumbnail { background: #455163; border-color: #8190a6; }
-:root .theme-dusk .theme-thumbnail > i { background: #4c586a; }
-:root .theme-dusk .theme-thumbnail em { background: #c4ddff; }
-:root .theme-dusk .theme-thumbnail em:nth-child(2) { background: #ffe0ad; }
-:root .theme-dusk .theme-thumbnail em:nth-child(3) { background: #b4edd8; }
-:root .theme-soft .theme-thumbnail {
-  background: #e8eceb;
-  border-color: #b4c2ba;
+:root .theme-graphite .theme-thumbnail {
+  background: #171717;
+  border-color: #4b4a47;
   padding: 4px;
   gap: 4px;
 }
-:root .theme-soft .theme-thumbnail > i { background: #dee6e3; border: 0; border-radius: 2px; }
-:root .theme-soft .theme-thumbnail > b { background: #f7f8f4; padding: 10px 6px; border-radius: 2px; }
-:root .theme-soft .theme-thumbnail em { background: #4c6580; }
-:root .theme-soft .theme-thumbnail em:nth-child(2) { background: #8a561a; }
-:root .theme-soft .theme-thumbnail em:nth-child(3) { background: #24705f; }
+:root .theme-graphite .theme-thumbnail > i { background: #141414; border: 0; border-radius: 2px; }
+:root .theme-graphite .theme-thumbnail > b { background: #232323; padding: 10px 6px; border-radius: 2px; }
+:root .theme-graphite .theme-thumbnail em { background: #7eb4ff; }
+:root .theme-graphite .theme-thumbnail em:nth-child(2) { background: #ffbf78; }
+:root .theme-graphite .theme-thumbnail em:nth-child(3) { background: #82e0ae; }
 
 /* Keep the workbench chrome quiet so request and response bodies stay primary. */
 :root :is(.rail, .topbar, .sidebar, .statusbar, .request-tabs) {

@@ -8,10 +8,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const storageKey = 'envdock.preferences.v1';
 // Vitest disables CSS imports; load and apply the actual stylesheet through CSSOM.
 const themeCss = readFileSync(resolve('src/themes.css'), 'utf8');
+let sheet: HTMLStyleElement;
 const dialogMethods = Object.fromEntries(['showModal', 'close'].map(name =>
   [name, Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, name)],
 ));
-let sheet: HTMLStyleElement;
 
 beforeEach(() => {
   vi.resetModules();
@@ -69,183 +69,103 @@ function contrast(foreground: string, background: string): number {
   return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 }
 
-describe('设置中的第四个主题', () => {
-  it('默认深色，选择雾青即时应用并保存，重开设置保持选中', async () => {
+describe('1.8.0 外观设置', () => {
+  it('只提供四种主题，选择石墨黑即时应用并保存，重开设置保持选中', async () => {
     const first = await renderSettings();
     const appearance = within(screen.getByRole('region', { name: '外观设置' }));
-    expect(appearance.getAllByRole('button')).toHaveLength(5);
+    expect(appearance.getAllByRole('button')).toHaveLength(4);
     expect(appearance.getByRole('button', { name: '深色' })).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(appearance.getByRole('button', { name: '雾青' }));
-    expect(appearance.getByRole('button', { name: '雾青' })).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(appearance.getByRole('button', { name: '石墨黑' }));
+
+    expect(appearance.getByRole('button', { name: '石墨黑' })).toHaveAttribute('aria-pressed', 'true');
     expect(appearance.getAllByRole('button', { pressed: true })).toHaveLength(1);
-    expect(document.documentElement.dataset.theme).toBe('soft');
-    expect(document.documentElement.style.colorScheme).toBe('light');
-    expect(JSON.parse(localStorage.getItem(storageKey)!).theme).toBe('soft');
+    expect(document.documentElement.dataset.theme).toBe('graphite');
+    expect(document.documentElement.style.colorScheme).toBe('dark');
+    expect(JSON.parse(localStorage.getItem(storageKey)!)).toMatchObject({ theme: 'graphite' });
+
     first.unmount();
     await renderSettings();
-    expect(screen.getByRole('button', { name: '雾青' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '石墨黑' })).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it.each(['dark', 'light', 'system'] as const)('打开设置不迁移已有 %s 偏好，雾青可切回原主题', async theme => {
+  it.each([
+    ['light', '浅色', 'light'],
+    ['dark', '深色', 'dark'],
+    ['system', '跟随系统', 'light'],
+    ['graphite', '石墨黑', 'graphite'],
+  ] as const)('可选择 %s：%s', async (theme, name, appliedTheme) => {
     vi.stubGlobal('matchMedia', vi.fn(() => ({
       matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn(),
     })));
+    await renderSettings();
+    fireEvent.click(screen.getByRole('button', { name }));
+    expect(screen.getByRole('button', { name })).toHaveAttribute('aria-pressed', 'true');
+    expect(document.documentElement.dataset.theme).toBe(appliedTheme);
+    if (theme === 'dark') expect(localStorage.getItem(storageKey)).toBeNull();
+    else expect(JSON.parse(localStorage.getItem(storageKey)!).theme).toBe(theme);
+  });
+
+  it.each(['soft', 'dusk'] as const)('旧版 %s 偏好回退到深色，且不改写原存储', async theme => {
     const saved = JSON.stringify({ theme, sidebarWidth: 310 });
     localStorage.setItem(storageKey, saved);
     await renderSettings();
-    const names = { dark: '深色', light: '浅色', system: '跟随系统' };
-    expect(screen.getByRole('button', { name: names[theme] })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '深色' })).toHaveAttribute('aria-pressed', 'true');
+    expect(document.documentElement.dataset.theme).toBe('dark');
     expect(localStorage.getItem(storageKey)).toBe(saved);
-    fireEvent.click(screen.getByRole('button', { name: '雾青' }));
-    fireEvent.click(screen.getByRole('button', { name: names[theme] }));
-    expect(screen.getByRole('button', { name: names[theme] })).toHaveAttribute('aria-pressed', 'true');
-    expect(document.documentElement.dataset.theme).toBe(theme === 'system' ? 'light' : theme);
-    expect(JSON.parse(localStorage.getItem(storageKey)!)).toMatchObject({ theme, sidebarWidth: 310 });
   });
 
-  it('恢复默认布局保留雾青主题', async () => {
-    localStorage.setItem(storageKey, JSON.stringify({ theme: 'soft', sidebarWidth: 310, layout: 'side-by-side' }));
+  it('恢复默认布局保留石墨黑主题', async () => {
+    localStorage.setItem(storageKey, JSON.stringify({ theme: 'graphite', sidebarWidth: 310, layout: 'side-by-side' }));
     await renderSettings();
     fireEvent.click(screen.getByRole('button', { name: '布局' }));
     fireEvent.click(screen.getByRole('button', { name: '恢复默认布局' }));
     expect(JSON.parse(localStorage.getItem(storageKey)!)).toMatchObject({
-      theme: 'soft', sidebarWidth: 240, layout: 'stacked',
+      theme: 'graphite', sidebarWidth: 240, layout: 'stacked',
     });
     fireEvent.click(screen.getByRole('button', { name: '外观' }));
-    expect(screen.getByRole('button', { name: '雾青' })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: '石墨黑' })).toHaveAttribute('aria-pressed', 'true');
   });
 });
 
-describe('暮蓝主题', () => {
-  it('设置可选择暮蓝，重开后仍选中并能切回其他主题', async () => {
-    const first = await renderSettings();
-    fireEvent.click(screen.getByRole('button', { name: '暮蓝' }));
-    expect(screen.getByRole('button', { name: '暮蓝' })).toHaveAttribute('aria-pressed', 'true');
-    expect(document.documentElement.dataset.theme).toBe('dusk');
-    expect(document.documentElement.style.colorScheme).toBe('dark');
-    expect(JSON.parse(localStorage.getItem(storageKey)!).theme).toBe('dusk');
-    first.unmount();
-    await renderSettings();
-    expect(screen.getByRole('button', { name: '暮蓝' })).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(screen.getByRole('button', { name: '浅色' }));
-    expect(document.documentElement.dataset.theme).toBe('light');
-    expect(document.documentElement.style.colorScheme).toBe('light');
-  });
-
-  it('独立覆盖全部语义色，外壳与编辑器都处于中间明度', () => {
+describe('石墨黑调色板', () => {
+  it('完整覆盖深色主题令牌，并明确区分请求体和响应体', () => {
     const rules = Array.from(sheet.sheet!.cssRules).filter((rule): rule is CSSStyleRule => rule.type === CSSRule.STYLE_RULE);
     const properties = (style: CSSStyleDeclaration) =>
       Array.from({ length: style.length }, (_, index) => style[index]).filter(name => name.startsWith('--')).sort();
     const baseline = rules.find(rule => rule.selectorText.includes('data-theme=dark'))!;
-    const dusk = rules.find(rule => rule.selectorText === ':root[data-theme=dusk]');
-    expect(dusk, '缺少独立暮蓝调色板').toBeDefined();
-    expect(properties(dusk!.style)).toEqual(properties(baseline.style));
-    document.documentElement.dataset.theme = 'dusk';
+    const graphite = rules.find(rule => rule.selectorText === ':root[data-theme=graphite]');
+    expect(graphite, '缺少独立石墨黑调色板').toBeDefined();
+    expect(properties(graphite!.style)).toEqual(properties(baseline.style));
+
+    document.documentElement.dataset.theme = 'graphite';
     expect(getComputedStyle(document.documentElement).colorScheme).toBe('dark');
-    for (const surface of ['--bg', '--panel', '--surface-subtle', '--code-bg']) {
-      const channels = rgb(token(surface));
-      // Midtone slate, with neither the old near-black editor nor white paper.
-      expect(Math.min(...channels), surface).toBeGreaterThanOrEqual(60);
-      expect(Math.max(...channels), surface).toBeLessThanOrEqual(135);
-      expect(channels[2], `${surface} should lean blue`).toBeGreaterThan(channels[1]);
-      document.documentElement.dataset.theme = 'dark';
-      const old = token(surface);
-      document.documentElement.dataset.theme = 'dusk';
-      expect(contrast(token(surface), old), `${surface} must visibly brighten`).toBeGreaterThan(1.7);
-    }
-    expect(new Set(['--bg', '--panel', '--surface-subtle', '--code-bg'].map(token)).size).toBe(4);
+    expect(token('--bg')).toBe('#171717');
+    expect(token('--request-code-bg')).toBe('#141923');
+    expect(token('--response-code-bg')).toBe('#2b2a28');
+    expect(token('--request-code-bg')).not.toBe(token('--response-code-bg'));
+    expect(token('--separator')).not.toBe(token('--border'));
+    expect(token('--separator-hover')).not.toBe(token('--accent'));
   });
 
-  it('JSON 语法、行号、选区与搜索高亮保持足够对比', () => {
-    document.documentElement.dataset.theme = 'dusk';
+  it('正文与 JSON 语法颜色在请求体和响应体上保持可读', () => {
+    document.documentElement.dataset.theme = 'graphite';
     const syntax = ['--code-key', '--code-string', '--code-number', '--code-literal'];
     expect(new Set(syntax.map(token)).size).toBe(4);
-    for (const foreground of [...syntax, '--code-text', '--code-gutter', '--code-punctuation']) {
-      for (const background of ['--code-bg', '--code-active-line', '--code-selection']) {
+    for (const background of ['--request-code-bg', '--response-code-bg', '--code-active-line']) {
+      for (const foreground of [...syntax, '--code-text', '--code-punctuation']) {
         expect(contrast(token(foreground), token(background)), `${foreground} / ${background}`).toBeGreaterThanOrEqual(4.5);
       }
     }
-    for (const [foreground, background] of [
-      ['--code-search-text', '--code-search-bg'],
-      ['--success', '--success-bg'], ['--warning', '--warning-bg'], ['--danger', '--danger-bg'],
-      ['--method-get', '--panel'], ['--method-post', '--panel'], ['--method-write', '--panel'],
-    ]) expect(contrast(token(foreground), token(background)), `${foreground} / ${background}`).toBeGreaterThanOrEqual(4.5);
-    for (const background of ['--danger-solid', '--danger-hover']) {
-      expect(contrast('#ffffff', token(background)), background).toBeGreaterThanOrEqual(4.5);
-    }
+    expect(contrast(token('--code-gutter'), token('--request-code-bg'))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(token('--code-punctuation'), token('--response-code-bg'))).toBeGreaterThanOrEqual(4.5);
   });
 });
 
-describe('雾青实际样式与可读性', () => {
-  it('显式覆盖所有已有主题 token，避免继承深色值', () => {
-    const rules = Array.from(sheet.sheet!.cssRules).filter((rule): rule is CSSStyleRule => rule.type === CSSRule.STYLE_RULE);
-    const customProperties = (style: CSSStyleDeclaration) =>
-      Array.from({ length: style.length }, (_, index) => style[index]).filter(name => name.startsWith('--')).sort();
-    const baseline = rules.find(rule => rule.selectorText.includes('data-theme=dark'))!;
-    const soft = rules.find(rule => rule.selectorText === ':root[data-theme=soft]');
-    expect(soft, '缺少独立雾青调色板').toBeDefined();
-    expect(customProperties(soft!.style)).toEqual(customProperties(baseline.style));
-    for (const name of customProperties(baseline.style)) expect(soft!.style.getPropertyValue(name).trim(), name).not.toBe('');
-  });
-
-  it('浅色外壳、较深侧栏和暖白正文具有层次，离开雾青恢复原调色板', () => {
-    document.documentElement.dataset.theme = 'soft';
-    expect(token('--bg')).toBe('#e8eceb');
-    expect(token('--surface-subtle')).toBe('#dee6e3');
-    expect(token('--panel')).toBe('#f7f8f4');
-    expect(getComputedStyle(document.documentElement).colorScheme).toBe('light');
-    document.documentElement.dataset.theme = 'dark';
-    expect(token('--bg')).toBe('#22262e');
-    document.documentElement.dataset.theme = 'light';
-    expect(token('--bg')).toBe('#eef3f6');
-  });
-
-  it('正文、提示、导航和按钮在实际表面上的文字对比度至少 4.5:1', () => {
-    document.documentElement.dataset.theme = 'soft';
-    const text = ['--text', '--text-secondary', '--muted', '--accent'];
-    const surfaces = ['--bg', '--surface-subtle', '--panel', '--panel-raised', '--button-bg', '--button-hover', '--accent-soft'];
-    for (const foreground of text) for (const background of surfaces) {
-      expect(contrast(token(foreground), token(background)), `${foreground} / ${background}`).toBeGreaterThanOrEqual(4.5);
-    }
-    for (const foreground of ['--nav-requests', '--nav-environments', '--nav-variables', '--nav-manage']) {
-      expect(contrast(token(foreground), token('--bg')), foreground).toBeGreaterThanOrEqual(4.5);
-    }
-    for (const [foreground, background] of [
-      ['--primary-text', '--primary-bg'], ['--primary-text', '--primary-hover'],
-      ['--selection-text', '--accent-soft'], ['--success', '--success-bg'],
-      ['--warning', '--warning-bg'], ['--danger', '--danger-bg'],
-    ]) expect(contrast(token(foreground), token(background)), `${foreground} / ${background}`).toBeGreaterThanOrEqual(4.5);
-    for (const background of ['--danger-solid', '--danger-hover']) {
-      expect(contrast('#ffffff', token(background)), `白字 / ${background}`).toBeGreaterThanOrEqual(4.5);
-    }
-  });
-
-  it('四类 JSON 值颜色互异，在正文、当前行和选择背景上的对比度至少 4.5:1', () => {
-    document.documentElement.dataset.theme = 'soft';
-    const syntax = ['--code-key', '--code-string', '--code-number', '--code-literal'];
-    expect(new Set(syntax.map(token)).size).toBe(4);
-    for (const foreground of [...syntax, '--code-text', '--code-gutter', '--code-punctuation']) {
-      for (const background of ['--code-bg', '--code-active-line', '--code-selection']) {
-        expect(contrast(token(foreground), token(background)), `${foreground} / ${background}`).toBeGreaterThanOrEqual(4.5);
-      }
-    }
-    expect(contrast(token('--code-search-text'), token('--code-search-bg'))).toBeGreaterThanOrEqual(4.5);
-  });
-
-  it('焦点环和控件轮廓相对表面的对比度至少 3:1', () => {
-    document.documentElement.dataset.theme = 'soft';
-    for (const background of ['--bg', '--surface-subtle', '--panel', '--control-bg', '--button-bg', '--accent-soft']) {
-      for (const foreground of ['--focus-ring', '--control-border']) {
-        expect(contrast(token(foreground), token(background)), `${foreground} / ${background}`).toBeGreaterThanOrEqual(3);
-      }
-    }
-  });
-});
-
-describe.each(['dark', 'light', 'soft', 'dusk'])('%s 主题的信息层次', theme => {
+describe.each(['dark', 'light', 'graphite'])('%s 主题的信息层次', theme => {
   beforeEach(() => { document.documentElement.dataset.theme = theme; });
 
-  it('请求响应底色分别配置，JSON 正文和行号在各自背景上可读', () => {
+  it('请求响应底色分别配置，普通文字、选中状态和主操作可读', () => {
     const request = token('--request-code-bg'), response = token('--response-code-bg');
     expect(request).not.toBe(response);
     for (const background of [request, response]) {
@@ -253,41 +173,12 @@ describe.each(['dark', 'light', 'soft', 'dusk'])('%s 主题的信息层次', the
         expect(contrast(token(foreground), background), `${foreground} / ${background}`).toBeGreaterThanOrEqual(4.5);
       }
     }
-    expect(contrast(token('--code-gutter'), request)).toBeGreaterThanOrEqual(4.5);
-    // The response gutter uses the punctuation token on its slightly deeper surface.
-    expect(contrast(token('--code-punctuation'), response)).toBeGreaterThanOrEqual(4.5);
-  });
-
-  it('四种信息色的文字和背景保持可读，正文能在所有卡片上阅读', () => {
-    const pairs = [
-      ['--tone-blue', '--tone-blue-bg'],
-      ['--tone-teal', '--tone-teal-bg'],
-      ['--tone-amber', '--tone-amber-bg'],
-      ['--tone-violet', '--tone-violet-bg'],
-    ];
-    expect(new Set(pairs.map(([, background]) => token(background))).size).toBe(4);
-    for (const [foreground, background] of pairs) {
-      expect(contrast(token(foreground), token(background)), `${foreground} / ${background}`).toBeGreaterThanOrEqual(4.5);
-      for (const text of ['--text', '--text-secondary', '--muted']) {
-        expect(contrast(token(text), token(background)), `${text} / ${background}`).toBeGreaterThanOrEqual(4.5);
-      }
-    }
-  });
-
-  it('普通文本、选中状态、主操作和焦点在各主题下都可读', () => {
     for (const background of ['--bg', '--panel', '--surface-subtle', '--panel-raised', '--button-bg', '--button-hover', '--accent-soft']) {
       for (const foreground of ['--text', '--text-secondary', '--muted', '--accent']) {
         expect(contrast(token(foreground), token(background)), `${foreground} / ${background}`).toBeGreaterThanOrEqual(4.5);
       }
     }
-    for (const background of ['--primary-bg', '--primary-hover']) {
-      expect(contrast(token('--primary-text'), token(background)), background).toBeGreaterThanOrEqual(4.5);
-    }
+    expect(contrast(token('--primary-text'), token('--primary-bg'))).toBeGreaterThanOrEqual(4.5);
     expect(contrast(token('--selection-text'), token('--accent-soft'))).toBeGreaterThanOrEqual(4.5);
-    for (const foreground of ['--focus-ring', '--control-border']) {
-      for (const background of ['--panel', '--control-bg', '--surface-subtle']) {
-        expect(contrast(token(foreground), token(background)), `${foreground} / ${background}`).toBeGreaterThanOrEqual(3);
-      }
-    }
   });
 });

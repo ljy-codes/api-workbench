@@ -352,13 +352,13 @@ kbd { font: 10px "Segoe UI", sans-serif; border: 1px solid #3b3d4d; border-radiu
 .request-split .response-panel { flex: 1; overflow: auto; }
 .exchange-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .resize-handle { background: transparent; flex-shrink: 0; touch-action: none; position: relative; z-index: 1; }
-.resize-handle::after { content: ''; position: absolute; background: var(--border); pointer-events: none; }
+.resize-handle::after { content: ''; position: absolute; background: var(--separator); pointer-events: none; }
 .resize-handle.vertical { width: 5px; cursor: col-resize; }
 .resize-handle.horizontal { height: 5px; cursor: row-resize; }
 .resize-handle.vertical::after { width: 1px; inset-block: 0; left: 2px; }
 .resize-handle.horizontal::after { height: 1px; inset-inline: 0; top: 2px; }
-.resize-handle:hover::after { background: var(--accent); }
-.resize-handle:focus-visible::after { background: var(--focus-ring); }
+.resize-handle:hover::after { background: var(--separator-hover); }
+.resize-handle:focus-visible::after { background: var(--separator-focus); }
 .resize-handle:focus-visible { outline: none; }
 .resize-handle[aria-disabled=true] { cursor: default; }
 .auth-editor { margin-top: 16px; }
@@ -435,7 +435,7 @@ kbd { font: 10px "Segoe UI", sans-serif; border: 1px solid #3b3d4d; border-radiu
 .settings-content h3 { font-size: 18px; margin: 8px 0 9px; font-weight: 600; }
 .settings-content .exchange-panel { margin: 0; }
 .settings-content .exchange-panel h2 { margin: 8px 0 9px; font-size: 18px; }
-.theme-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 24px; }
+.theme-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; margin-top: 24px; }
 .theme-option { padding: 8px; flex-direction: column; gap: 12px; background: transparent; }
 .theme-option[aria-pressed=true], .settings-choice-row button[aria-pressed=true] { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 .theme-option > span:last-child { display: flex; align-items: center; gap: 6px; font-size: 12px; padding-bottom: 5px; }
