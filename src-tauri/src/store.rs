@@ -345,19 +345,23 @@ fn validate_auth(auth: Option<&AuthConfig>) -> Result<(), String> {
     {
         return Err("鉴权类型或位置无效".into());
     }
-    // Validate even inactive fields: none/basic must not be a plaintext hiding
-    // place. Username/key are intentionally allowed to contain literals.
+    // Validate even inactive fields so malformed template syntax or control
+    // characters cannot be hidden in another auth kind. Literal credentials
+    // are supported for local debugging; variable references remain supported.
     for value in [&auth.token, &auth.password, &auth.value] {
         if value.is_empty() {
             continue;
         }
         let reference = value.strip_prefix("{{").and_then(|s| s.strip_suffix("}}"));
-        if !reference.is_some_and(|name| {
+        if reference.is_some_and(|name| {
             !name.trim().is_empty()
                 && !name.contains(['{', '}'])
                 && !name.chars().any(char::is_control)
         }) {
-            return Err("鉴权凭据只能为空或完整的 {{变量名}} 引用，请在敏感变量中保存凭据".into());
+            continue;
+        }
+        if value.contains(['{', '}']) || value.chars().any(char::is_control) {
+            return Err("鉴权凭据只能直接填写文本或使用完整的 {{变量名}} 引用".into());
         }
     }
     Ok(())

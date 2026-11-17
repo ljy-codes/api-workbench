@@ -1,13 +1,15 @@
 import { useState } from 'react';
 import type { AuthConfig } from '../types';
 
-function isReference(value: string) {
+function isCredential(value: string) {
   if (value === '') return true;
-  if (!value.startsWith('{{') || !value.endsWith('}}')) return false;
-  const name = value.slice(2, -2);
-  // Match Rust's nonempty trimmed name and char::is_control checks. Whitespace
-  // around (or within) a variable name is not itself an invalid credential.
-  return !/^\p{White_Space}*$/u.test(name) && !/[{}\u0000-\u001f\u007f-\u009f]/.test(name);
+  if (value.startsWith('{{') && value.endsWith('}}')) {
+    const name = value.slice(2, -2);
+    // Match Rust's nonempty trimmed name. Whitespace around (or within) a
+    // variable name is not itself an invalid credential.
+    return !/^\p{White_Space}*$/u.test(name) && !/[{}\u0000-\u001f\u007f-\u009f]/.test(name);
+  }
+  return !/[{}\u0000-\u001f\u007f-\u009f]/.test(value);
 }
 
 // Invalid keystrokes stay local to the field and never enter a saveable workspace.
@@ -17,17 +19,17 @@ function SecretReference({ label, value, onChange }: { label: string; value: str
   if (state.source !== value) {
     // Synchronize before committing stale DOM, but not on unrelated rerenders
     // or new auth object identities. Keep interrupted invalid input recoverable.
-    field = { source: value, draft: value, recoverable: isReference(state.draft) ? state.recoverable : state.draft };
+    field = { source: value, draft: value, recoverable: isCredential(state.draft) ? state.recoverable : state.draft };
     setState(field);
   }
-  const valid = isReference(field.draft);
+  const valid = isCredential(field.draft);
   return <div><label>{label}<input aria-label={label} autoComplete="off" spellCheck={false} value={field.draft} aria-invalid={!valid} placeholder="{{秘密变量名}}" onChange={e => {
     const next = e.target.value;
-    const accepted = isReference(next);
+    const accepted = isCredential(next);
     setState({ ...field, draft: next, recoverable: accepted ? null : field.recoverable });
     if (accepted) onChange(next);
-  }} />{!valid && <small role="alert" className="danger-text">仅允许空值或完整变量引用；当前输入不会保存或发送。</small>}</label>
-    {field.recoverable !== null && <div className="hint">引用已由外部更新，未完成输入仅在当前编辑器内保留。
+  }} />{!valid && <small role="alert" className="danger-text">仅允许直接填写 Token 或完整变量引用；花括号和控制字符不会保存或发送。</small>}</label>
+    {field.recoverable !== null && <div className="hint">凭据已由外部更新，未完成输入仅在当前编辑器内保留。
       <button type="button" className="text-button" onClick={() => setState({ ...field, draft: field.recoverable!, recoverable: null })}>恢复未完成输入</button>
     </div>}
   </div>;
@@ -43,7 +45,7 @@ export function AuthEditor({ value, onChange, inherited = false, temporary = fal
   const kind = value?.kind ?? (inherited ? 'inherit' : 'none');
   const update = (patch: Partial<AuthConfig>) => onChange({ ...value!, ...patch });
   return <div className="auth-editor">
-    <p className="hint">{temporary ? '直接填写本次请求使用的凭据，无需配置环境变量。' : <>凭据只允许使用 <code>{'{{变量名}}'}</code> 引用。在变量配置中将实际值标记为秘密后保存；鉴权生成项与手工 Header / Query 冲突时会拒绝发送。</>}</p>
+    <p className="hint">{temporary ? '直接填写本次请求使用的凭据，无需配置环境变量。' : <>凭据支持直接填写，也支持使用 <code>{'{{变量名}}'}</code> 引用；鉴权生成项与手工 Header / Query 冲突时会拒绝发送。</>}</p>
     <label>鉴权方式<select aria-label="鉴权方式" value={kind} onChange={e => {
       const next = e.target.value;
       onChange(next === 'inherit' ? null : next === 'apiKey' ? { kind: 'apiKey', key: '', value: '', location: 'header' } : { kind: next as AuthConfig['kind'] });

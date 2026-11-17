@@ -46,22 +46,30 @@ describe('0.2 编辑控件', () => {
     expect(onChange).toHaveBeenCalledWith({ kind: 'bearer', token });
     expect(screen.queryByRole('alert')).toBeNull();
   });
-  it.each(['{{ }}', '{{}}', '{{a{b}}', '{{token}} tail', ' {{token}}', '{{a\u0085b}}'])('与后端一致拒绝无效引用 %j，不写回工作区', token => {
+  it('接受直接填写的 Bearer Token，并写回鉴权配置', () => {
+    const onChange = vi.fn();
+    const token = 'eyJhbGciOiJIUzI1NiJ9.direct-token';
+    render(<AuthEditor value={{ kind: 'bearer', token: '' }} onChange={onChange} />);
+    fireEvent.change(screen.getByLabelText('Token 变量引用'), { target: { value: token } });
+    expect(onChange).toHaveBeenCalledWith({ kind: 'bearer', token });
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+  it.each(['{{ }}', '{{}}', '{{a{b}}', '{{token}} tail', ' {{token}}', '{{a\u0085b}}'])('与后端一致拒绝无效凭据 %j，不写回工作区', token => {
     const onChange = vi.fn();
     render(<AuthEditor value={{ kind: 'bearer', token: '{{old}}' }} onChange={onChange} />);
     fireEvent.change(screen.getByLabelText('Token 变量引用'), { target: { value: token } });
     expect(onChange).not.toHaveBeenCalled();
     expect(screen.getByRole('alert')).toBeTruthy();
   });
-  it('鉴权仅提交空值或变量引用，拒绝明文秘密，支持显式不继承', () => {
+  it('鉴权支持直接凭据或变量引用，并支持显式不继承', () => {
     function Harness() {
       const [auth, setAuth] = useState<AuthConfig | null>({ kind: 'bearer', token: '' });
       return <><AuthEditor value={auth} onChange={setAuth} inherited /><output data-testid="auth">{JSON.stringify(auth)}</output></>;
     }
     render(<Harness />);
     fireEvent.change(screen.getByLabelText('Token 变量引用'), { target: { value: 'plaintext-secret' } });
-    expect(screen.getByTestId('auth').textContent).not.toContain('plaintext-secret');
-    expect(screen.getByRole('alert').textContent).toContain('变量引用');
+    expect(screen.getByTestId('auth').textContent).toContain('plaintext-secret');
+    expect(screen.queryByRole('alert')).toBeNull();
     fireEvent.change(screen.getByLabelText('Token 变量引用'), { target: { value: '{{token}}' } });
     expect(screen.getByTestId('auth').textContent).toContain('{{token}}');
     fireEvent.change(screen.getByLabelText('鉴权方式'), { target: { value: 'none' } });

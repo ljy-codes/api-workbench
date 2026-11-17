@@ -192,7 +192,7 @@ fn fresh_database_has_v2_and_unknown_single_version_is_rejected() {
 }
 
 #[test]
-fn v2_fields_round_trip_and_auth_secrets_reject_plaintext_even_when_inactive() {
+fn v2_fields_round_trip_and_auth_credentials_allow_literals_but_reject_malformed_values() {
     let dir = tempdir().unwrap();
     let path = dir.path().join("roundtrip.sqlite");
     legacy(&path);
@@ -242,7 +242,6 @@ fn v2_fields_round_trip_and_auth_secrets_reject_plaintext_even_when_inactive() {
     for service in [false, true] {
         for field in ["token", "password", "value"] {
             for invalid in [
-                "raw-private-credential",
                 "Bearer {{token}}",
                 "{{token}}{{token}}",
                 "{{}}",
@@ -268,6 +267,13 @@ fn v2_fields_round_trip_and_auth_secrets_reject_plaintext_even_when_inactive() {
             }
         }
     }
+    let mut literal = workspace.clone();
+    literal.services[0].auth.as_mut().unwrap().token = "raw-private-credential".into();
+    let saved = store.save(literal).unwrap();
+    assert_eq!(
+        saved.services[0].auth.as_ref().unwrap().token,
+        "raw-private-credential"
+    );
 }
 
 #[test]

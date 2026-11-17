@@ -13,8 +13,10 @@ fn credential_reference(value: &str) -> Result<(), String> {
         !name.trim().is_empty() && !name.contains(['{', '}']) && !name.chars().any(char::is_control)
     }) {
         Ok(())
+    } else if value.contains(['{', '}']) || value.chars().any(char::is_control) {
+        Err("鉴权凭据只能直接填写文本或使用完整的 {{变量名}} 引用".into())
     } else {
-        Err("鉴权凭据仅允许空值或完整的 {{变量名}} 引用".into())
+        Ok(())
     }
 }
 

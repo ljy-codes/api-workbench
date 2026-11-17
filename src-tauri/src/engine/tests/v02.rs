@@ -242,7 +242,7 @@ async fn p2_curl_head_accepts_content_length_without_a_response_body() {
 }
 
 #[test]
-fn auth_inherits_explicit_none_disables_and_credentials_require_exact_refs() {
+fn auth_inherits_explicit_none_disables_and_credentials_allow_literals_and_refs() {
     let (mut w, mut i) = fixture();
     w.services[0].auth = auth(json!({"kind":"bearer","token":"{{secret}}"}));
     set_variables(
@@ -265,7 +265,6 @@ fn auth_inherits_explicit_none_disables_and_credentials_require_exact_refs() {
         .headers
         .contains_key("authorization"));
     for bad in [
-        "plaintext-secret",
         "prefix{{secret}}",
         "{{secret}}suffix",
         "{{secret}}{{secret}}",
@@ -277,6 +276,17 @@ fn auth_inherits_explicit_none_disables_and_credentials_require_exact_refs() {
         let error = preview(&w, &i).unwrap_err();
         assert!(!error.contains(bad));
     }
+}
+
+#[test]
+fn auth_accepts_literal_bearer_tokens() {
+    let (mut w, mut i) = fixture();
+    i.request.auth = auth(json!({"kind":"bearer","token":"eyJhbGciOiJIUzI1NiJ9.direct-token"}));
+    let prepared = prepare(&w, &i, Mode::Execute).expect("literal bearer token should be sent");
+    assert_eq!(
+        prepared.headers["authorization"],
+        "Bearer eyJhbGciOiJIUzI1NiJ9.direct-token"
+    );
 }
 
 #[test]
@@ -589,7 +599,7 @@ fn auth_credential_validation_matches_store_including_inactive_fields() {
         );
     }
     i.request.auth = auth(json!({"kind":"none","password":"private-plaintext"}));
-    assert!(preview(&w, &i).is_err());
+    assert!(preview(&w, &i).is_ok());
     i.request.auth = auth(json!({"kind":"none","location":"invalid"}));
     assert!(preview(&w, &i).is_err());
     for allowed in ["", "{{secret}}", "{{ secret }}"] {
