@@ -1,5 +1,7 @@
 # EnvDock macOS 适配
 
+当前功能基线为 **v1.8.1**。Windows 与 macOS 的业务功能由同一套 React、TypeScript 和 Rust/Tauri 源码提供；跨版本功能逐项对照见 [macOS / Windows 功能对照](macOS-feature-matrix.md)。
+
 ## 源码分析
 
 - 前端：React 19、TypeScript、Vite、Zustand，CodeMirror JSON 编辑器。
@@ -49,23 +51,22 @@ Node 25 默认的实验性 Web Storage 与原有 jsdom 测试冲突，测试时�
 本地构建没有 Apple Developer ID 签名和公证。分发给其他 Mac 前应使用自己的开发者证书签名并公证，不要全局关闭 Gatekeeper。
 
 
-## 本次验证（2026-10-31）
+## 平台范围
 
-- 源码基线：`270f0be`，本机 Intel x86_64 / macOS 13.7.8。
-- 前端：42 个文件、621 项测试通过；TypeScript / Vite 生产构建通过。
-- 既有打包检查：11 项通过。
-- Rust：120 项单元测试、2 项集成测试通过；另行执行 1 项默认跳过的登录钥匙串测试并通过。
-- 加密验证包括 Unicode / 空字符串往返、随机 nonce、错误密钥及篡改拒绝，以及加密响应写入、重开读取和数据隔离。
-- Release `.app` / `.dmg` 均生成成功，DMG 经 `hdiutil verify` 校验通过。
-- 已启动应用，确认进程持续运行，并在正确的 Application Support 目录创建数据库。
-- 桌面控制服务启动失败，未完成界面截图及逐项点击验证；没有把进程启动检查当作完整 UI 验收。
-- Intel 和 Apple Silicon（arm64）两种 Release 构建均已完成；M 系列版本由 Intel Mac 交叉编译，未进行 M 系列设备实际启动验证。
-- 发布前为两个架构的应用补齐完整 ad-hoc 签名，并检查应用签名和 DMG 完整性。未使用 Apple Developer ID 签名或公证。
+macOS 保留 Windows 版本的项目、环境、接口、请求、响应、导入导出、临时请求、JSON 工具、开发工具、OpenAPI、请求时间线、诊断、命令面板、快捷键、窗口控件、主题和直接 Bearer Token 功能。Windows-only 的 NSIS/WebView2/PowerShell/portable/DPAPI/卸载清理属于平台交付实现，Mac 使用 `.app/.dmg`、WebKit、Application Support、登录钥匙串和 AES-256-GCM 提供对应平台实现。
 
-交付目录：
+数据库 schema、IPC 命令、请求执行协议、响应缓存、Bundle ID `local.apiworkbench.desktop` 和钥匙串服务保持兼容，没有新增 Mac 专用业务入口。
 
-- Intel：`publish/EnvDock-1.0.0-macos-x64/`。
-- M 系列：`publish/EnvDock-1.0.0-macos-arm64/`。
-- Release 附件汇总：`publish/EnvDock-1.0.0-macos-release/`，含两种 DMG、SHA-256 校验文件、说明和许可证。
+## 本次验证（2026-11-17）
 
-打开对应架构的 DMG，将 EnvDock 拖到 Applications，或直接双击对应目录中的 `.app`。
+- 源码基线：`f93d868`（v1.8.1）；Windows v1.0-v1.8.1 已按对照矩阵核查。
+- 本机：Intel x86_64 / macOS 13.7.8；Node 25.6、Rust 1.99.1、Xcode SDK 13.3。
+- 前端：76 个源码测试文件、1100 项通过；临时请求测试单独重跑 8/8 通过；TypeScript / Vite 生产构建通过。
+- 打包规则：13 项通过；直接 Bearer Token 原生回归通过。
+- Intel 和 Apple Silicon（arm64）v1.8.1 Release `.app` / `.dmg` 均生成成功，DMG 经 `hdiutil verify` 校验，应用经 `codesign --deep --strict` 和架构检查。
+- 已启动 Intel 应用，确认旧工作区、项目、环境和接口正常载入；石墨黑主题即时切换及重启保存通过，随后恢复原深色偏好。
+- 升级前使用 SQLite backup API 保存 app.db（含 WAL 工作区）；升级前后 integrity check 为 `ok` 且逻辑内容一致。
+- M 系列版本由 Intel Mac 交叉编译，未进行 M 系列设备实际启动验证。
+- 应用使用临时 ad-hoc 签名，未使用 Apple Developer ID 签名或公证。
+
+当前交付目录：`publish/EnvDock-1.8.1-macos-release/`，包含 Intel/M 系列 DMG、SHA-256 校验文件、说明、构建信息、验证结果和许可证。打开对应架构的 DMG，将 EnvDock 拖到 Applications。
