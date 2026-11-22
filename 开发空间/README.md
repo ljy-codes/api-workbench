@@ -10,6 +10,8 @@
 - 1.8.1 的交付文件和发布说明作为历史记录保留。
 - Windows x64 安装包由 Windows 构建机产出，本机工作区不包含。
 
+macOS 与 Windows 共用业务源码和功能基线，只在系统适配层使用平台分支。平台版本和 GitHub 保留规则见 [平台发布策略](docs/platform-release-policy.md)：macOS 使用偶数发布号，Windows 使用奇数发布号；当前 macOS 2.0.0 已完成，Windows 对应包需在 Windows 构建机完成后发布。
+
 ## 开源许可
 
 EnvDock 原创代码采用 **MIT License**，版权声明为 `Copyright (c) 2026 ljy-codes`，完整条款见同目录 [LICENSE](LICENSE)。安装版及便携预览的交付目录附带 `LICENSE.txt`。

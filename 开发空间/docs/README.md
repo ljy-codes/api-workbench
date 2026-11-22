@@ -8,6 +8,7 @@
 - [../RELEASE_NOTES_1.8.1.md](../RELEASE_NOTES_1.8.1.md)：1.8.1 历史发布说明。
 - [macOS.md](macOS.md)：macOS 数据目录、钥匙串、构建与验证。
 - [macOS-feature-matrix.md](macOS-feature-matrix.md)：macOS 与 Windows 功能对照。
+- [platform-release-policy.md](platform-release-policy.md)：平台版本奇偶、共享功能基线和 GitHub 保留规则。
 
 ## 操作指导
 

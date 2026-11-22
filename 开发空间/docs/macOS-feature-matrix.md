@@ -41,3 +41,4 @@
 - Mac 仍有与 Windows 一致的产品限制：HTTP/1、无系统代理/自动重试/自动重定向、非 UTF-8 有损展示、无 OAuth/WebSocket/gRPC/脚本/批量测试。
 - 当前验证基线：前端 76 个测试文件、1100 项通过；13 项打包检查通过；直接 Bearer Token 原生回归通过；Intel 与 arm64 Release 均完成构建，arm64 需 M 系列实机再验收。
 - 后续每次 Windows 版本升级，应先在本表新增版本行，再核对共享源码、Mac 构建和对应 UI/原生回归，避免只更新版本号而漏同步功能。
+- 平台版本奇偶和 GitHub 只保留最终版本的规则见 [平台发布策略](platform-release-policy.md)。
