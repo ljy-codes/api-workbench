@@ -1,27 +1,37 @@
-node_modules/
-dist/
-.tools/
-.tmp/
-artifacts/
-publish/
-src-tauri/target/
-src-tauri/gen/
-*.tsbuildinfo
-*.db
-*.db-shm
-*.db-wal
-ApiWorkbenchData/
-.worktrees/
+# 开发依赖与构建产物
+开发空间/node_modules/
+开发空间/dist/
+开发空间/publish/
+开发空间/src-tauri/target/
+开发空间/src-tauri/gen/
+开发空间/.tools/
+开发空间/.tmp/
+**/*.tsbuildinfo
+
+# 本地数据、备份与迁移
+开发空间/backups/
+开发空间/ApiWorkbenchData/
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/*.sqlite
+**/*.sqlite3
+
+# 交付产品仅保留在本机，不进入源码仓库
+交付产品/
+
+# 安装器与本地环境
+开发空间/src-tauri/installer/plugins/
 .env
 .env.*
 !.env.example
+.worktrees/
 *.log
 *.dmp
-*.sqlite
-*.sqlite3
-backups/
-src-tauri/installer/plugins/
 
-# Local-only verification and maintenance records may contain business data.
-/docs/test.md
-/docs/cleanup-2026-10-08.md
+# 本机私有记录
+开发空间/docs/test.md
+开发空间/docs/cleanup-2026-10-08.md
+
+# macOS
+.DS_Store

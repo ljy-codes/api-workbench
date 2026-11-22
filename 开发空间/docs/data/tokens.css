@@ -1,0 +1,13 @@
+/* 配色知识库示例 token：浅色主题 */
+:root {
+  --color-bg: #F7F9FC;
+  --color-surface: #FFFFFF;
+  --color-border: #DDE3EA;
+  --color-text: #16202A;
+  --color-muted: #667085;
+  --color-accent: #2F6BFF;
+  --color-accent-2: #12A594;
+  --color-success: #12A594;
+  --color-warning: #D97706;
+  --color-danger: #D92D20;
+}

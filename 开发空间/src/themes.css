@@ -1,0 +1,727 @@
+/* Quiet chrome, expressive data. Shared rules below use all theme palettes. */
+:root,
+:root[data-theme=dark] {
+  color-scheme: dark;
+  color: var(--text);
+  background: var(--bg);
+  --bg: #22262e;
+  --panel: #282d36;
+  --panel-raised: #303742;
+  --border: #424c59;
+  --text: #e0e5ed;
+  --text-secondary: #c8d2df;
+  --muted: #b7c2d2;
+  --accent: #a9cbe3;
+  --nav-requests: #a9cbe3;
+  --nav-environments: #c7b5e2;
+  --nav-variables: #91cdbb;
+  --nav-manage: #e3c08b;
+  --cyan: #7bdcba;
+  --danger: #f08fa2;
+  --surface-subtle: #242a32;
+  --control-bg: #282e38;
+  --control-border: #78899e;
+  --button-bg: #303742;
+  --button-hover: #3b4655;
+  --accent-soft: #303f50;
+  --accent-border: #7c97b0;
+  --selection-text: #e0eef9;
+  --primary-bg: #416b86;
+  --primary-hover: #49758f;
+  --primary-text: #ffffff;
+  --success: #7bdcba;
+  --success-bg: #20372f;
+  --warning: #edc276;
+  --warning-bg: #342d21;
+  --danger-bg: #3c2730;
+  --danger-border: #78505d;
+  --danger-solid: #a84257;
+  --danger-hover: #bd4e65;
+  --focus-ring: #95a8c2;
+  --overlay-shadow: 0 12px 30px #0008;
+  --dialog-shadow: 0 26px 110px #0008;
+  --dialog-backdrop: #090b10b8;
+  --scrollbar: #414957;
+  --scrollbar-hover: #566174;
+  --code-bg: #171b26;
+  --request-code-bg: #171b26;
+  --response-code-bg: #191d25;
+  --code-text: #dde5f0;
+  --code-gutter: #8792a5;
+  --code-active-line: #252a35;
+  --code-key: #63b3ff;
+  --code-string: #ffbd72;
+  --code-number: #78dfaf;
+  --code-literal: #ff8fae;
+  --code-punctuation: #a7b3c7;
+  --code-comment: #7f8da3;
+  --code-selection: #526b9966;
+  --code-search-bg: #f2cb7c;
+  --code-search-text: #292217;
+  --method-get: #7bdcba;
+  --method-post: #edc276;
+  --method-write: #88b8ff;
+  --tone-blue: #a9cbe3;
+  --tone-blue-bg: #2b3948;
+  --tone-teal: #91cdbb;
+  --tone-teal-bg: #2a3b38;
+  --tone-amber: #e3c08b;
+  --tone-amber-bg: #40382e;
+  --tone-violet: #c7b5e2;
+  --tone-violet-bg: #383346;
+  --card-shadow: 0 2px 8px #00000012;
+  --chrome-bg: #1c2129;
+  --chrome-panel: #202630;
+  --chrome-border: #343d4a;
+  --chrome-text: #a5b1c1;
+  --chrome-muted: #788697;
+  --chrome-active: #2b3440;
+  --chrome-active-text: #c4d0dd;
+  --chrome-control: #222a34;
+  --content-border: #4b5f71;
+  --separator: #53606d;
+  --separator-hover: #7894ad;
+  --separator-focus: #95a8c2;
+}
+
+:root[data-theme=light] {
+  color-scheme: light;
+  --bg: #eef3f6;
+  --panel: #ffffff;
+  --panel-raised: #f0f4f7;
+  --border: #d3dee6;
+  --text: #2f4154;
+  --text-secondary: #485c70;
+  --muted: #52667a;
+  --accent: #315c7b;
+  --nav-requests: #335f8d;
+  --nav-environments: #75608e;
+  --nav-variables: #286a58;
+  --nav-manage: #855c22;
+  --cyan: #08775a;
+  --danger: #b63450;
+  --surface-subtle: #e7eef3;
+  --control-bg: #ffffff;
+  --control-border: #758799;
+  --button-bg: #f0f4f7;
+  --button-hover: #e4ecf3;
+  --accent-soft: #e0ecf7;
+  --accent-border: #7998b5;
+  --selection-text: #284d70;
+  --primary-bg: #416b86;
+  --primary-hover: #345b75;
+  --primary-text: #ffffff;
+  --success: #08775a;
+  --success-bg: #e1f3eb;
+  --warning: #865606;
+  --warning-bg: #fff2d9;
+  --danger-bg: #fce9ee;
+  --danger-border: #dfacb9;
+  --danger-solid: #b63450;
+  --danger-hover: #9c2b43;
+  --focus-ring: #617793;
+  --overlay-shadow: 0 12px 32px #25344a24;
+  --dialog-shadow: 0 26px 110px #25344a38;
+  --dialog-backdrop: #2630475c;
+  --scrollbar: #b4bdca;
+  --scrollbar-hover: #8b99ac;
+  --code-bg: #fcfdff;
+  --request-code-bg: #fcfdff;
+  --response-code-bg: #f3f6fa;
+  --code-text: #29364a;
+  --code-gutter: #68758a;
+  --code-active-line: #f0f3f8;
+  --code-key: #155bcd;
+  --code-string: #9b500b;
+  --code-number: #08765e;
+  --code-literal: #b13555;
+  --code-punctuation: #596b83;
+  --code-comment: #56626f;
+  --code-selection: #cbd9ee99;
+  --code-search-bg: #f9df9a;
+  --code-search-text: #513804;
+  --method-get: #08775a;
+  --method-post: #865606;
+  --method-write: #285fae;
+  --tone-blue: #335f8d;
+  --tone-blue-bg: #edf4fc;
+  --tone-teal: #286a58;
+  --tone-teal-bg: #eaf6f1;
+  --tone-amber: #855c22;
+  --tone-amber-bg: #fbf3e6;
+  --tone-violet: #75608e;
+  --tone-violet-bg: #f4effa;
+  --card-shadow: 0 2px 8px #314b6510;
+  --chrome-bg: #e4ebf0;
+  --chrome-panel: #edf2f5;
+  --chrome-border: #cbd6de;
+  --chrome-text: #4f5d6c;
+  --chrome-muted: #525f6d;
+  --chrome-active: #dbe6ee;
+  --chrome-active-text: #3e5d79;
+  --chrome-control: #f4f7f9;
+  --content-border: #b4c5d1;
+  --separator: #b4c5d1;
+  --separator-hover: #7998b5;
+  --separator-focus: #617793;
+}
+
+/* Graphite black keeps the shell quiet while request and response bodies remain distinct. */
+:root[data-theme=graphite] {
+  color-scheme: dark;
+  --bg: #171717;
+  --panel: #232323;
+  --panel-raised: #2b2b2b;
+  --border: #3b3b3b;
+  --text: #e2e0db;
+  --text-secondary: #c7c5bf;
+  --muted: #aaa8a1;
+  --accent: #c7c3b8;
+  --nav-requests: #aabfe2;
+  --nav-environments: #c2b6d8;
+  --nav-variables: #9ec9b5;
+  --nav-manage: #d0b37e;
+  --cyan: #83d7ba;
+  --danger: #ef9aa8;
+  --surface-subtle: #1d1d1d;
+  --control-bg: #282828;
+  --control-border: #65635e;
+  --button-bg: #2a2a2a;
+  --button-hover: #333333;
+  --accent-soft: #353635;
+  --accent-border: #8e8a7d;
+  --selection-text: #f2efe8;
+  --primary-bg: #5a5a50;
+  --primary-hover: #6b6a5e;
+  --primary-text: #ffffff;
+  --success: #83d7ba;
+  --success-bg: #1f3831;
+  --warning: #edc276;
+  --warning-bg: #3a3223;
+  --danger-bg: #3c272e;
+  --danger-border: #79515b;
+  --danger-solid: #a84257;
+  --danger-hover: #bd4e65;
+  --focus-ring: #b8b3a6;
+  --overlay-shadow: 0 12px 30px #000000aa;
+  --dialog-shadow: 0 26px 110px #000000aa;
+  --dialog-backdrop: #000000bb;
+  --scrollbar: #4b4a47;
+  --scrollbar-hover: #67655f;
+  --code-bg: #141923;
+  --request-code-bg: #141923;
+  --response-code-bg: #2b2a28;
+  --code-text: #e2e0db;
+  --code-gutter: #aaa8a1;
+  --code-active-line: #20242c;
+  --code-key: #7eb4ff;
+  --code-string: #ffbf78;
+  --code-number: #82e0ae;
+  --code-literal: #ff9db5;
+  --code-punctuation: #b7bcc8;
+  --code-comment: #8f96a5;
+  --code-selection: #4a4c4e;
+  --code-search-bg: #f0cc7a;
+  --code-search-text: #2e281c;
+  --method-get: #83d7ba;
+  --method-post: #edc276;
+  --method-write: #8db9ff;
+  --tone-blue: #aabfe2;
+  --tone-blue-bg: #283142;
+  --tone-teal: #9ec9b5;
+  --tone-teal-bg: #263b34;
+  --tone-amber: #d0b37e;
+  --tone-amber-bg: #403524;
+  --tone-violet: #c2b6d8;
+  --tone-violet-bg: #373044;
+  --card-shadow: 0 2px 8px #00000040;
+  --chrome-bg: #141414;
+  --chrome-panel: #1c1c1c;
+  --chrome-border: #2e2e2e;
+  --chrome-text: #a9a7a0;
+  --chrome-muted: #77766f;
+  --chrome-active: #292929;
+  --chrome-active-text: #d7d4cc;
+  --chrome-control: #202020;
+  --content-border: #363634;
+  --separator: #4b4a47;
+  --separator-hover: #6b6962;
+  --separator-focus: #b8b3a6;
+}
+
+/* CodeMirror's injected dark extension keeps using these theme-aware colors. */
+:root .cm-editor .cm-selectionBackground,
+:root .cm-editor.cm-focused .cm-selectionBackground,
+:root .cm-editor .cm-content ::selection {
+  background: var(--code-selection);
+}
+:root .cm-editor .cm-searchMatch {
+  background: var(--code-search-bg);
+  color: var(--code-search-text);
+}
+:root .cm-editor .cm-panels,
+:root .cm-editor .cm-tooltip {
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--border);
+}
+:root .cm-editor .cm-panel input,
+:root .cm-editor .cm-panel button,
+:root .cm-editor .cm-panel label {
+  color: var(--text);
+}
+:root .cm-editor .cm-textfield {
+  background: var(--control-bg);
+  border-color: var(--control-border);
+}
+:root .cm-editor .cm-button {
+  background: var(--button-bg);
+  border-color: var(--control-border);
+}
+:root .cm-editor .cm-tooltip-autocomplete > ul > li[aria-selected] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+:root .cm-editor .cm-matchingBracket {
+  background: var(--accent-soft);
+  color: var(--accent);
+  outline-color: var(--accent-border);
+}
+:root .cm-editor.cm-focused {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
+}
+
+:root body,
+:root .app-shell {
+  color: var(--text);
+  background: var(--bg);
+}
+:root button {
+  background: var(--button-bg);
+  border-color: var(--border);
+}
+:root button:hover:not(:disabled) {
+  background: var(--button-hover);
+  border-color: var(--accent-border);
+}
+:root input,
+:root select,
+:root textarea {
+  background: var(--control-bg);
+  color: var(--text);
+  border-color: var(--control-border);
+  color-scheme: inherit;
+}
+:root :is(input, textarea)::placeholder { color: var(--muted); }
+:root input[type=checkbox] { accent-color: var(--accent); }
+:root option { background: var(--panel); color: var(--text); }
+:root kbd {
+  background: var(--surface-subtle);
+  border-color: var(--border);
+  color: var(--muted);
+}
+:root :is(button, input, select, textarea, summary, [role=separator]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+:root .primary {
+  color: var(--primary-text);
+  background: var(--primary-bg);
+  border-color: var(--accent-border);
+}
+:root .primary:hover:not(:disabled) {
+  background: var(--primary-hover);
+  border-color: var(--accent-border);
+}
+:root .danger {
+  background: var(--danger-solid);
+  border-color: var(--danger-solid);
+  color: #ffffff;
+}
+:root .danger:hover:not(:disabled) {
+  background: var(--danger-hover);
+  border-color: var(--danger-hover);
+}
+:root :is(.icon-button, .text-button, .rail-button) {
+  background: transparent;
+  border-color: transparent;
+}
+:root .text-button { color: var(--accent); }
+:root .rail { background: var(--bg); }
+:root .brand-mark { background: var(--surface-subtle); color: var(--accent); }
+:root :is(.rail-button, .rail-bottom) { color: var(--muted); }
+:root .rail-button.active { color: var(--accent); background: var(--accent-soft); }
+:root .rail-button.active:before { background: var(--accent); }
+:root .rail-button[data-page=requests] { --rail-color: var(--nav-requests); --rail-bg: var(--tone-blue-bg); }
+:root .rail-button[data-page=environments] { --rail-color: var(--nav-environments); --rail-bg: var(--tone-violet-bg); }
+:root .rail-button[data-page=variables] { --rail-color: var(--nav-variables); --rail-bg: var(--tone-teal-bg); }
+:root .rail-button[data-page=manage] { --rail-color: var(--nav-manage); --rail-bg: var(--tone-amber-bg); }
+:root .rail-button[data-page] { color: var(--muted); }
+:root .rail-button[data-page].active { color: var(--rail-color); background: var(--rail-bg); }
+:root .rail-button[data-page].active:before { background: var(--rail-color); }
+:root :is(.topbar, .sidebar, .statusbar) { background: var(--surface-subtle); }
+:root .main-content { background: var(--panel); }
+
+:root .color-dot { border-color: #ffffffb3; box-shadow: 0 0 0 1px #66708580; }
+:root .color-select-trigger { background: var(--panel); color: var(--text); }
+:root .color-select-list {
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--border);
+  box-shadow: var(--overlay-shadow);
+}
+:root .color-select-option[data-active=true] {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+}
+:root .color-presets button[aria-pressed=true] {
+  border-color: var(--accent);
+  outline-color: var(--accent);
+}
+:root .color-hex input[aria-invalid=true],
+:root .auth-fields input[aria-invalid=true] { border-color: var(--danger); }
+:root :is(.color-picker legend, .form-fields > label:not(.checkbox-label), .auth-editor label) {
+  color: var(--text-secondary);
+}
+:root :is(.checkbox-label, .data-cleanup-body .checkbox-label) { color: var(--text-secondary); }
+:root .save-state { color: var(--muted); }
+:root .save-state.unsaved { color: var(--warning); }
+:root .preview-banner {
+  background: var(--accent-soft);
+  border-color: var(--border);
+  color: var(--text-secondary);
+}
+:root .preview-banner-detail { color: var(--muted); }
+:root .sidebar-title small { background: var(--panel-raised); color: var(--muted); }
+:root .search-field {
+  background: var(--panel);
+  border-color: var(--control-border);
+  color: var(--muted);
+}
+:root .search-field input { background: transparent; border-color: transparent; }
+:root .search-field kbd { color: var(--muted); }
+:root :is(.service-node, .folder-node, .request-node) {
+  background: transparent;
+  border-color: transparent;
+}
+:root .service-node > svg:nth-child(2) { color: var(--muted); }
+:root :is(.service-node small, .sidebar-empty, .sidebar-bottom, .sidebar-bottom .mono) { color: var(--muted); }
+:root .folder-node { color: var(--text-secondary); }
+:root .request-node.selected { background: var(--accent-soft); color: var(--selection-text); }
+:root .method { color: var(--accent); }
+:root .method-GET { color: var(--method-get); }
+:root .method-POST { color: var(--method-post); }
+:root .method-DELETE { color: var(--danger); }
+:root :is(.method-PUT, .method-PATCH) { color: var(--method-write); }
+:root .status-dot { background: var(--success); }
+:root .status-dot.production { background: var(--danger); }
+:root .dirty-dot { background: var(--warning); }
+
+:root .url-bar { background: var(--surface-subtle); border-color: var(--control-border); }
+:root .url-bar select { background: transparent; border-color: var(--border); color: var(--accent); }
+:root .url-bar select.method-GET { color: var(--method-get); }
+:root .url-bar select.method-POST { color: var(--method-post); }
+:root .url-bar :is(select.method-PUT, select.method-PATCH) { color: var(--method-write); }
+:root .url-bar select.method-DELETE { color: var(--danger); }
+:root .url-bar input { background: transparent; border-color: transparent; color: var(--code-text); }
+:root :is(.url-preview, .request-config-tabs > button, .body-type-tab, .request-menu summary, .timeout-label) {
+  color: var(--text-secondary);
+}
+:root :is(.request-config-tabs > button, .body-type-tab > button, .body-type-tab select) {
+  background: transparent;
+  border-color: transparent;
+}
+:root .body-type-tab select { color: inherit; }
+:root :is(.request-config-tabs > button[aria-selected=true], .body-type-tab[data-active=true]) {
+  color: var(--accent);
+}
+:root :is(.request-config-tabs > button[aria-selected=true], .body-type-tab[data-active=true]):after {
+  background: var(--accent);
+}
+:root .request-menu summary:hover,
+:root .request-menu[open] summary { color: var(--accent); background: var(--accent-soft); }
+:root .request-menu-panel {
+  background: var(--panel);
+  border-color: var(--border);
+  box-shadow: var(--overlay-shadow);
+}
+:root .request-menu-panel > button { background: transparent; border-color: transparent; }
+:root .request-menu-panel > button:hover:not(:disabled) { background: var(--button-hover); }
+:root .editor-tabs small { background: var(--accent-soft); color: var(--accent); }
+:root .timeout-label input { background: var(--code-bg); border-color: var(--control-border); }
+:root :is(.hint, .table-empty) { color: var(--muted); }
+:root .hint code { color: var(--accent); }
+:root .pair-row { border-color: var(--border); }
+:root .pair-row input:not([type=checkbox]) { background: transparent; border-color: transparent; }
+:root .pair-row input:not([type=checkbox]):hover { border-color: var(--control-border); }
+:root .table-heading { color: var(--muted); background: var(--surface-subtle); }
+:root .request-tabs { background: var(--surface-subtle); }
+:root .request-tab.active { background: var(--accent-soft); box-shadow: inset 0 -2px var(--accent); }
+:root .request-tab button { background: transparent; border-color: transparent; }
+:root .request-tab .tab-close { color: var(--muted); }
+:root .all-tabs-trigger { background: var(--button-bg); border-color: var(--border); color: var(--text-secondary); }
+:root .all-tabs-trigger:hover:not(:disabled) { background: var(--button-hover); border-color: var(--accent-border); }
+:root .request-tabs-menu { background: var(--panel); border-color: var(--border); box-shadow: var(--overlay-shadow); }
+:root .request-tabs-menu > button { background: transparent; border-color: transparent; color: var(--text); }
+:root .request-tabs-menu > button:hover:not(:disabled), :root .request-tabs-menu > button:focus-visible { background: var(--button-hover); border-color: var(--focus-ring); }
+:root .resize-handle { background: transparent; }
+:root .resize-handle:focus-visible { outline: none; }
+
+:root .request-pane { --code-bg: var(--request-code-bg); }
+:root .request-pane .body-content { background: var(--code-bg); }
+:root .response-panel {
+  --code-bg: var(--response-code-bg);
+  --code-gutter: var(--code-punctuation);
+  background: var(--code-bg);
+}
+:root .response-environment { background: var(--panel-raised); color: var(--text-secondary); }
+:root :is(.response-title, .response-metrics, .execution-context, .response-search) {
+  color: var(--text-secondary);
+}
+:root .response-title > svg { color: var(--muted); }
+:root .response-actions-bar { border-top: 1px solid var(--border); }
+:root .success-badge { background: var(--success-bg); color: var(--success); }
+:root .error-badge { background: var(--danger-bg); color: var(--danger); }
+:root .empty-icon { background: var(--panel-raised); border-color: var(--border); color: var(--muted); }
+:root :is(.response-empty h3, .empty-state h2) { color: var(--text-secondary); }
+:root :is(.response-empty p, .shortcut-hint, .empty-state, .headers-table th) { color: var(--muted); }
+:root .response-toolbar button[role=tab] {
+  background: transparent;
+  border-color: transparent;
+  color: var(--muted);
+}
+:root .response-toolbar button[aria-selected=true] { color: var(--accent); border-bottom-color: var(--accent); }
+:root .response-actions select { background: transparent; border-color: transparent; }
+:root .error-box { background: var(--danger-bg); border-color: var(--danger-border); color: var(--danger); }
+:root .warning-line { background: var(--warning-bg); color: var(--warning); }
+
+:root :is(.page-heading p, .eyebrow, .welcome-panel > p, .getting-started span, .getting-started small) {
+  color: var(--muted);
+}
+:root .welcome-symbol { background: var(--accent-soft); border-color: var(--border); color: var(--accent); }
+:root .welcome-panel h1 span { color: var(--accent); }
+:root .getting-started { border-color: var(--border); }
+:root .getting-started strong { color: var(--text-secondary); }
+:root .matrix th { background: var(--surface-subtle); }
+:root .info-card { background: var(--surface-subtle); border-color: var(--border); }
+:root :is(.info-card > svg, .management-card h2 svg) { color: var(--muted); }
+:root .info-card strong { color: var(--text-secondary); }
+:root .info-card p { color: var(--muted); }
+:root .production-tag { background: var(--danger-bg); border-color: var(--danger-border); color: var(--danger); }
+:root .badge { background: var(--accent-soft); color: var(--accent); }
+:root .management-card { background: var(--panel); border-color: var(--border); }
+:root .page-panel { background: var(--bg); min-height: 100%; }
+:root .management-card { box-shadow: var(--card-shadow); }
+:root .management-card > header { background: var(--surface-subtle); }
+:root .management-card:nth-child(4n + 1) h2 > svg { color: var(--tone-blue); }
+:root .management-card:nth-child(4n + 2) h2 > svg { color: var(--tone-teal); }
+:root .management-card:nth-child(4n + 3) h2 > svg { color: var(--tone-violet); }
+:root .management-card:nth-child(4n) h2 > svg { color: var(--tone-amber); }
+:root :is(.management-card > header, .entity-row) { border-color: var(--border); }
+:root :is(.management-card h2 small, .entity-name small, .section-toolbar p, .scope-tabs small) { color: var(--muted); }
+:root .scope-tabs button { background: var(--surface-subtle); border-color: var(--border); color: var(--muted); }
+:root .scope-tabs button[aria-selected=true] {
+  background: var(--accent-soft);
+  border-color: var(--accent-border);
+  color: var(--accent);
+}
+:root .secret-field { background: var(--control-bg); border-color: var(--control-border); }
+:root .dialog {
+  background: var(--panel);
+  color: var(--text);
+  border-color: var(--control-border);
+  box-shadow: var(--dialog-shadow);
+}
+:root .dialog::backdrop { background: var(--dialog-backdrop); }
+:root :is(.dialog-header, .dialog-footer) { border-color: var(--border); }
+:root .confirm-message { color: var(--text-secondary); }
+:root .statusbar { color: var(--muted); }
+:root .footer-divider { color: var(--muted); }
+:root .toast {
+  background: var(--panel-raised);
+  color: var(--text);
+  border-color: var(--accent-border);
+  box-shadow: var(--overlay-shadow);
+}
+:root .service-settings summary { color: var(--accent); }
+:root .settings-nav > button,
+:root .theme-option {
+  background: transparent;
+  border-color: transparent;
+}
+:root .theme-option { border-color: var(--border); }
+:root .settings-nav > button:hover:not(:disabled) {
+  background: var(--button-hover);
+}
+:root .settings-nav > button[aria-current=page] {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+:root .theme-option[aria-pressed=true],
+:root .settings-choice-row button[aria-pressed=true] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+:root .settings-content .theme-options { grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)); }
+:root .theme-graphite .theme-thumbnail {
+  background: #171717;
+  border-color: #4b4a47;
+  padding: 4px;
+  gap: 4px;
+}
+:root .theme-graphite .theme-thumbnail > i { background: #141414; border: 0; border-radius: 2px; }
+:root .theme-graphite .theme-thumbnail > b { background: #232323; padding: 10px 6px; border-radius: 2px; }
+:root .theme-graphite .theme-thumbnail em { background: #7eb4ff; }
+:root .theme-graphite .theme-thumbnail em:nth-child(2) { background: #ffbf78; }
+:root .theme-graphite .theme-thumbnail em:nth-child(3) { background: #82e0ae; }
+
+/* Keep the workbench chrome quiet so request and response bodies stay primary. */
+:root :is(.rail, .topbar, .sidebar, .statusbar, .request-tabs) {
+  background: var(--chrome-bg);
+  border-color: var(--chrome-border);
+}
+:root .rail {
+  color: var(--chrome-muted);
+}
+:root .rail .brand-mark {
+  opacity: .62;
+  filter: saturate(.45);
+  background: transparent;
+  border-color: transparent;
+}
+:root .rail .brand-mark:hover:not(:disabled),
+:root .rail .brand-mark[aria-current=page] {
+  background: var(--chrome-active);
+  border-color: var(--chrome-border);
+}
+:root :is(.rail-button, .rail-bottom) {
+  color: var(--chrome-muted);
+}
+:root .rail-button[data-page],
+:root .rail-button[data-page].active {
+  --rail-color: var(--chrome-active-text);
+  --rail-bg: var(--chrome-active);
+}
+:root .rail-button[data-page].active {
+  color: var(--chrome-active-text);
+  background: var(--chrome-active);
+}
+:root .rail-button[data-page].active:before {
+  background: var(--chrome-active-text);
+}
+:root .topbar {
+  color: var(--chrome-text);
+}
+:root .window-controls {
+  border-color: var(--chrome-border);
+}
+:root .window-control {
+  color: var(--chrome-muted);
+}
+:root .window-control:hover:not(:disabled) {
+  background: var(--chrome-active);
+  color: var(--chrome-active-text);
+}
+:root .window-control-close:hover:not(:disabled) {
+  background: var(--danger);
+  color: #fff;
+}
+:root .topbar .field-caption,
+:root .topbar .save-state,
+:root .topbar .icon-button {
+  color: var(--chrome-muted);
+}
+:root .topbar .save-state.unsaved {
+  color: var(--warning);
+}
+:root .topbar .color-select-trigger {
+  background: var(--chrome-control);
+  border-color: var(--chrome-border);
+  color: var(--chrome-text);
+}
+:root .topbar .layout-tools {
+  border-color: var(--chrome-border);
+}
+:root .sidebar-title,
+:root .sidebar-actions,
+:root .search-field,
+:root .service-node,
+:root .folder-node,
+:root .request-node {
+  color: var(--chrome-text);
+}
+:root .search-field {
+  background: var(--chrome-panel);
+  border-color: var(--chrome-border);
+}
+:root :is(.sidebar-title small, .service-node small, .sidebar-empty, .sidebar-bottom, .sidebar-bottom .mono) {
+  color: var(--chrome-muted);
+}
+:root .request-node.selected {
+  background: var(--chrome-active);
+  color: var(--chrome-active-text);
+  box-shadow: inset 2px 0 var(--chrome-active-text);
+}
+:root .request-tab button,
+:root .request-tabs .request-tab .tab-close {
+  color: var(--chrome-muted);
+}
+:root .request-tab.active {
+  background: var(--chrome-active);
+  box-shadow: inset 0 -2px var(--chrome-active-text);
+}
+:root .statusbar {
+  color: var(--chrome-muted);
+}
+:root .statusbar .status-dot {
+  opacity: .58;
+}
+:root .request-pane .editor-content.body-content,
+:root .response-panel .response-code {
+  box-shadow: inset 0 0 0 1px var(--content-border);
+}
+:root .theme-dark .theme-thumbnail { background: #282d36; }
+:root .theme-dark .theme-thumbnail > i { background: #22262e; }
+:root .theme-dark .theme-thumbnail em { background: #a9cbe3; }
+:root .theme-dark .theme-thumbnail em:nth-child(2) { background: #e3c08b; }
+:root .theme-dark .theme-thumbnail em:nth-child(3) { background: #91cdbb; }
+:root .theme-light .theme-thumbnail { background: #ffffff; }
+:root .theme-light .theme-thumbnail > i { background: #e7eef3; }
+:root .theme-light .theme-thumbnail em { background: #335f8d; }
+:root .theme-light .theme-thumbnail em:nth-child(2) { background: #855c22; }
+:root .theme-light .theme-thumbnail em:nth-child(3) { background: #286a58; }
+:root .theme-system .theme-thumbnail { background: linear-gradient(90deg, #ffffff 50%, #282d36 50%); }
+:root .transfer-tree {
+  background: var(--surface-subtle);
+}
+:root .transfer-project-label,
+:root .transfer-environments label {
+  color: var(--text);
+}
+:root .transfer-tree-actions .text-button {
+  background: transparent;
+  border-color: transparent;
+}
+:root .transfer-warnings {
+  background: var(--warning-bg);
+  color: var(--warning);
+  border-left-color: var(--warning);
+}
+:root ::-webkit-scrollbar-thumb { background: var(--scrollbar); }
+:root ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+@media (prefers-reduced-motion: reduce) {
+  :root button { transition: none; }
+}
+
+@media (max-width: 760px) {
+  :root .settings-content .theme-options { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 540px) {
+  :root .settings-layout { grid-template-columns: minmax(0, 1fr); min-height: 0; }
+  :root .settings-nav { flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--border); padding: 10px; }
+  :root .settings-local { display: none; }
+  :root .settings-content { padding: 20px; }
+}
