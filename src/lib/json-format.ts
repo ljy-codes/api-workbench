@@ -12,7 +12,7 @@ interface JsonToken {
   kind?: JsonCommentRange['kind'];
 }
 
-function nextSignificant(source: string, start: number, comments: JsonCommentRange[], byFrom: Map<number, JsonCommentRange>): number {
+function nextSignificant(source: string, start: number, byFrom: Map<number, JsonCommentRange>): number {
   let index = start;
   while (index < source.length) {
     while (/[ \r\n\t]/.test(source[index] ?? '')) index++;
@@ -55,7 +55,7 @@ function stripTrailingCommas(source: string): string {
       continue;
     }
     if (char === ',') {
-      const next = nextSignificant(source, i + 1, comments, byFrom);
+      const next = nextSignificant(source, i + 1, byFrom);
       if ((source[next] === '}' || source[next] === ']') && previous && !'[{,:'.includes(previous)) {
         i++;
         continue;

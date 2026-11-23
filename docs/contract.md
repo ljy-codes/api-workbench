@@ -39,7 +39,7 @@ Rust 集成接口：
 
 Store 与 engine 依赖共享 `crate::models::*`；各 agent 不修改共享模型，变更请先通知主任务。
 
-上方是 0.1 基础 DTO。0.2 的兼容扩展以 `src/types.ts`、`src-tauri/src/models.rs` 及 `docs/superpowers/plans/2026-10-03-v02.md` 为准：Service.headers/auth、RequestDefinition.auth/form、form/multipart bodyType，缺省新字段兼容旧 JSON。
+上方是基础 DTO。后续兼容扩展以 `src/types.ts`、`src-tauri/src/models.rs` 和 `src-tauri/migrations` 为准，包括 Service.headers/auth、RequestDefinition.auth/form、form/multipart bodyType；缺省新字段继续兼容旧 JSON。
 
 新增 IPC：`pick_upload_file()`、`read_project_file()`、`write_project_file({content})`、`export_curl({input})`、`backup_workspace()`，前端签名见 `src/lib/ipc.ts`。文件路径仅原生选择器产生，导入内容不能指定写入位置。文件读写上限 10 MiB；备份仅包含已保存配置。
 

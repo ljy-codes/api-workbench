@@ -280,7 +280,7 @@ fn auth_inherits_explicit_none_disables_and_credentials_allow_literals_and_refs(
 
 #[test]
 fn auth_accepts_literal_bearer_tokens() {
-    let (mut w, mut i) = fixture();
+    let (w, mut i) = fixture();
     i.request.auth = auth(json!({"kind":"bearer","token":"eyJhbGciOiJIUzI1NiJ9.direct-token"}));
     let prepared = prepare(&w, &i, Mode::Execute).expect("literal bearer token should be sent");
     assert_eq!(

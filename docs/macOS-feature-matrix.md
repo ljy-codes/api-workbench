@@ -7,7 +7,7 @@
 | 版本 | Windows 功能点 | macOS 对应实现 | 证据 |
 | --- | --- | --- | --- |
 | 1.0 | 项目、服务、目录、接口、环境隔离、地址矩阵、自动保存、Query/Header/Body/Auth/变量/表单/文件、响应查看与缓存、生产确认、导入导出、cURL | 同等实现 | `src/App.tsx`, `src/hooks/useWorkbench.ts`, `src/components/RequestEditor.tsx`, `src/components/ResponsePanel.tsx`, `src/lib/transfer.ts` |
-| 1.1 | 请求 JSON 格式化、去 null、搜索、折叠、复制；临时 JSON 工具窗口 | 同等实现 | `src/lib/json-format.ts`, `src/components/JsonToolsDialog.tsx`, `docs/releases/1.1.0-json-tools.md` |
+| 1.1 | 请求 JSON 格式化、去 null、搜索、折叠、复制；临时 JSON 工具窗口 | 同等实现 | `src/lib/json-format.ts`, `src/components/JsonToolsDialog.tsx` |
 | 1.2 | JSON 双栏精确对比、转义还原、字段提取、CSV/SQL IN、请求时间线、响应比较、诊断与脱敏排查包 | 同等实现 | `src/components/JsonCompareTool.tsx`, `src/components/JsonStringTool.tsx`, `src/components/JsonExtractPanel.tsx`, `src/components/RequestHistoryDialog.tsx`, `src/lib/investigation-report.ts`, `src-tauri/src/report_files.rs` |
 | 1.3 | 开发工具箱、OpenAPI/Swagger 离线导入更新、响应布局、主题、1px 分隔线、诊断脱敏 | 同等实现 | `src/components/DevToolsDialog.tsx`, `src/lib/openapi.ts`, `src/components/SettingsPanel.tsx`, `src/styles.css` |
 | 1.4 | 无项目临时请求：完整 HTTP/HTTPS URL、多标签、Params/Headers/Auth/Body、取消、超时、响应诊断 | 同等实现 | `src/components/TemporaryRequests.tsx`, `src/hooks/useTemporaryRequests.ts`, `src-tauri/src/engine/temporary.rs` |
@@ -15,7 +15,7 @@
 | 1.6 | 最近关闭标签恢复、命令面板、快捷键总览、Ctrl/Cmd+W、分隔条双击复位、响应搜索上下文 | 同等实现 | `src/lib/closed-tabs.ts`, `src/lib/commands.ts`, `src/components/CommandPalette.tsx`, `src/components/ShortcutsDialog.tsx`, `src/components/ResizeHandle.tsx` |
 | 1.7 | JSON 行/块注释、发送/预览/cURL 前剥离注释、Ctrl/Cmd+/ 批量注释、编辑器语法色、自绘窗口控件 | 同等实现 | `src/lib/json-comments.ts`, `src/lib/json-format.ts`, `src-tauri/src/engine/body.rs`, `src/components/WindowControls.tsx`, `src-tauri/capabilities/default.json` |
 | 1.7.1 | 无标题栏窗口权限修复、窗口拖动/最小化/最大化/关闭、WebView 缓存恢复目录 | 同等实现 | `src-tauri/src/lib.rs`, `src-tauri/tauri.conf.json`, `src-tauri/capabilities/default.json` |
-| 1.8 | 浅色、深色、系统、石墨黑四主题；请求/响应底色和语法色；旧主题回退 | 同等实现 | `src/components/SettingsPanel.tsx`, `src/lib/preferences.ts`, `src/themes.css`, `docs/releases/v1.8.0.md` |
+| 1.8 | 浅色、深色、系统、石墨黑四主题；请求/响应底色和语法色；旧主题回退 | 同等实现 | `src/components/SettingsPanel.tsx`, `src/lib/preferences.ts`, `src/themes.css` |
 | 1.8.1 | 直接 Bearer Token、完整变量引用、非法混合花括号/控制字符拒绝 | 同等实现 | `src/components/AuthEditor.tsx`, `src-tauri/src/engine/auth.rs`, `src-tauri/src/store.rs`, `src-tauri/src/engine/tests/v02.rs` |
 | 2.0.1 / 2.0.0 | 快捷键监听稳定化、工作台派生数据记忆化、渲染异常恢复、测试环境兼容、主题弱化文字、启动错误诊断、CSP 加固和版本校验 | 同等共享实现；构建、数据目录和系统适配按平台保留 | `src/App.tsx`, `src/hooks/useWorkbench.ts`, `src/components/ErrorBoundary.tsx`, `src/test/setup.ts`, `src-tauri/src/lib.rs`, `src-tauri/tauri.conf.json`, `scripts/check-version.mjs` |
 

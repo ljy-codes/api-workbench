@@ -4,7 +4,7 @@
 
 ## 源码分析
 
-- 前端：React 19、TypeScript、Vite、Zustand，CodeMirror JSON 编辑器。
+- 前端：React 19、TypeScript、Vite，CodeMirror JSON 编辑器。
 - 原生：Tauri 2 / Rust，reqwest 执行 HTTP，请求取消与流读取由 Tokio 处理。
 - 数据：SQLite（bundled SQLite），项目、服务、环境、变量、请求和响应缓存均保存在本地。
 - 上游 Windows 限制：PowerShell 启动脚本、NSIS 安装器、LOCALAPPDATA 数据目录、DPAPI 敏感值加密。

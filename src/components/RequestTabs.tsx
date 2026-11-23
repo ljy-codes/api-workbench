@@ -88,7 +88,7 @@ export function RequestTabs({ model }: { model: Workbench }) {
           return <>
             <button role="menuitem" onClick={() => closeCurrent(current.id)}>关闭当前标签</button>
             <button role="menuitem" disabled={requests.length < 2} onClick={() => closeOthers(current.id)}>关闭其他标签</button>
-            <button role="menuitem" disabled={!requests.some((request, index) => index > requests.findIndex(item => item.id === current.id))} onClick={() => closeToRight(current.id)}>关闭右侧标签</button>
+            <button role="menuitem" disabled={requests.findIndex(item => item.id === current.id) === requests.length - 1} onClick={() => closeToRight(current.id)}>关闭右侧标签</button>
           </>;
         })()}
     </div>}

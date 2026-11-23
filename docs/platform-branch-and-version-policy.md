@@ -51,7 +51,7 @@ macos
 - GitHub 默认分支保持 `main`。
 - 长期分支只展示 `main`、`windows`、`macos`。
 - `codex/macos-2.0.0` 这类一次性工作分支完成整理后删除。
-- 旧版本不通过重复长期分支保存；使用 tag 和 GitHub Release 归档。
+- 旧版本不通过重复长期分支保存；源码通过 Git 提交历史追溯，不再长期保留重复 tag 和 Release。
 
 ## 3. 版本号与标签规定
 
@@ -73,7 +73,7 @@ X.Y.Z
 - macOS 使用偶数修订号，例如 `2.0.0`。
 - Windows 使用奇数修订号，例如 `2.0.1`。
 - 例如同一条 2.0 功能线，macOS 为 `2.0.0` 时，Windows 对应为 `2.0.1`。
-- 既有历史版本 `v1.8.0`、`v1.7.1` 等不改名、不重写；从本规定开始的新平台发布必须带平台后缀。
+- 历史版本不改名、不重写；当前清理后每个平台只保留最新版本标签，后续发布必须带平台后缀。
 
 ### 3.2 Git tag
 
@@ -91,11 +91,11 @@ v<X.Y.Z>-macos
 | Windows | `windows` | `2.0.1` | `v2.0.1-windows` |
 | macOS | `macos` | `2.0.0` | `v2.0.0-macos` |
 
-不带平台后缀的旧 tag 只作为历史记录识别，不再用于新发布。tag 必须指向完成版本校验的提交，不指向临时开发分支。
+不带平台后缀的旧版本号不再用于新发布。tag 必须指向完成版本校验的提交，不指向临时开发分支。
 
 ### 3.3 GitHub Release
 
-每个最终版本分别建立对应平台的 GitHub Release：
+每个最终版本在发布时建立对应平台的 GitHub Release：
 
 - Windows Release 使用 `v<X.Y.Z>-windows`。
 - macOS Release 使用 `v<X.Y.Z>-macos`。
@@ -103,25 +103,24 @@ v<X.Y.Z>-macos
 - Release 正文必须写明源码提交、构建环境、验证范围、已知限制和 SHA-256 校验文件。
 - Windows Release 上传 Windows 安装器、完整 ZIP、许可证和校验文件。
 - macOS Release 上传 Intel 与 Apple Silicon 的 DMG、许可证、构建记录和校验文件。
+- 同一平台发布新版后，用新版 Release 替换旧 Release；GitHub 页面只保留每个平台的最新下载入口。
 
-## 4. 历史版本归档
+## 4. 版本归档与精简
 
-历史版本通过 Git tag、GitHub Release 和本地交付目录归档：
+仓库和本地目录保持单一最新交付，不建立重复归档层：
 
 ```text
 GitHub
 ├── Branches: main / windows / macos
-├── Releases: 当前平台最终版本
-└── Tags: 历史版本与当前版本的可恢复源码
+├── Releases: Windows / macOS 各一个最新版本
+└── Tags: Windows / macOS 各一个当前版本标签
 
 本地交付目录
 └── 交付产品
-    ├── 当前平台版本
-    └── archive
-        └── 历史平台版本
+    └── 当前平台版本
 ```
 
-清理当前下载入口前，必须确认新版已提供安装包、校验文件、许可证和迁移说明。历史 tag 和 Release 默认保留，确保旧工作区仍能找到对应程序和说明。
+旧版本源码通过 Git 提交历史追溯。替换当前 Release 前，必须确认新版已提供安装包、校验文件、许可证和迁移说明；不在本地保留 `archive`，也不为每个历史版本重复创建长期 Release。
 
 ## 5. 发布前检查
 
@@ -141,6 +140,7 @@ GitHub
 - `main`：共享源码与仓库说明，当前 Windows 业务基线为 `2.0.1`，已补齐 macOS `2.0.0` 的共享能力。
 - `windows`：Windows 长期发布分支，基于 `main` 建立。
 - `macos`：macOS 长期发布分支，由现有 `macos-2.0.0` 整理而来。
-- `v2.0.0-macos`：继续保留，作为 macOS 2.0.0 的可恢复版本记录。
-- 现有历史 tags 和 Release：继续保留，不删除。
+- `v2.0.1-windows`：Windows 当前唯一 Release 和标签。
+- `v2.0.0-macos`：macOS 当前唯一 Release 和标签。
+- 旧版本：从 Git 提交历史追溯，不再保留重复 Release、标签或本地归档目录。
 - `codex/macos-2.0.0`：整理完成后删除，不作为用户入口。
