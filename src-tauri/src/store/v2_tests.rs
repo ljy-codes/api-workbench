@@ -573,12 +573,12 @@ fn corrupted_v2_json_is_rejected_without_repair_or_sensitive_error() {
         (
             "service",
             "auth",
-            r#"{"kind":"bearer","token":"private-json-content"}"#,
+            r#"{"kind":"bearer","token":"{{private-json-content"}"#,
         ),
         (
             "request",
             "auth",
-            r#"{"kind":"none","password":"private-json-content"}"#,
+            r#"{"kind":"none","password":"{{private-json-content"}"#,
         ),
         (
             "request",

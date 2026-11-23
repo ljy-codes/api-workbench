@@ -136,7 +136,7 @@
   --code-number: #08765e;
   --code-literal: #b13555;
   --code-punctuation: #596b83;
-  --code-comment: #718096;
+  --code-comment: #56626f;
   --code-selection: #cbd9ee99;
   --code-search-bg: #f9df9a;
   --code-search-text: #513804;
@@ -155,8 +155,8 @@
   --chrome-bg: #e4ebf0;
   --chrome-panel: #edf2f5;
   --chrome-border: #cbd6de;
-  --chrome-text: #617387;
-  --chrome-muted: #7b8c9c;
+  --chrome-text: #4f5d6c;
+  --chrome-muted: #525f6d;
   --chrome-active: #dbe6ee;
   --chrome-active-text: #3e5d79;
   --chrome-control: #f4f7f9;

@@ -380,13 +380,10 @@ fn build_main_window(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Err
         .data_directory(primary_data_dir.clone())
         .build();
 
-    if primary_result.is_ok() {
-        return Ok(());
-    }
-
-    let primary_error = primary_result
-        .err()
-        .expect("WebView2 创建结果已确认失败");
+    let primary_error = match primary_result {
+        Ok(_) => return Ok(()),
+        Err(error) => error,
+    };
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|duration| duration.as_nanos())
@@ -415,7 +412,7 @@ fn build_main_window(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Err
         })
 }
 
-pub fn run() {
+pub fn run() -> Result<(), Box<dyn std::error::Error>> {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_single_instance::init(|app, _, _| {
@@ -426,17 +423,30 @@ pub fn run() {
             }
         }))
         .setup(|app| {
-            let data_dir = data_directory(app)?;
-            std::fs::create_dir_all(&data_dir)?;
-            let store =
-                store::Store::open(&data_dir.join("app.db")).map_err(std::io::Error::other)?;
-            app.manage(AppState {
-                store: Arc::new(store),
-                executions: Executions::default(),
-                data_dir,
-            });
-            build_main_window(app)?;
-            Ok(())
+            let result = (|| {
+                let data_dir = data_directory(app)?;
+                std::fs::create_dir_all(&data_dir)?;
+                let store = store::Store::open(&data_dir.join("app.db"))
+                    .map_err(std::io::Error::other)?;
+                app.manage(AppState {
+                    store: Arc::new(store),
+                    executions: Executions::default(),
+                    data_dir,
+                });
+                build_main_window(app)?;
+                Ok::<(), Box<dyn std::error::Error>>(())
+            })();
+            if let Err(error) = &result {
+                let message = format!(
+                    "EnvDock 无法启动。请检查本地数据目录权限和 Windows WebView2 环境。\n\n{error}"
+                );
+                let _ = app
+                    .dialog()
+                    .message(message)
+                    .title("EnvDock 启动失败")
+                    .blocking_show();
+            }
+            result
         })
         .invoke_handler(tauri::generate_handler![
             load_workspace,
@@ -461,5 +471,5 @@ pub fn run() {
             backup_workspace
         ])
         .run(tauri::generate_context!())
-        .expect("EnvDock 启动失败：请检查数据目录权限与系统 WebView 运行环境");
+        .map_err(|error| format!("EnvDock 启动失败：{error}").into())
 }

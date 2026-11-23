@@ -1,6 +1,6 @@
 [package]
 name = "api-workbench"
-version = "1.8.1"
+version = "2.0.1"
 description = "Local-first API workbench"
 license = "MIT"
 edition = "2021"

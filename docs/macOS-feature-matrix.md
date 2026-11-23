@@ -1,6 +1,6 @@
 # EnvDock macOS / Windows 功能对照
 
-本表以仓库 `v1.8.1`（`f93d868`）为基线，逐个核对 Windows 发布说明、共享 React/Rust 实现和 macOS 构建配置。业务功能由同一套前端与 Tauri 命令承载；平台差异只保留在安装、数据目录、密钥设施和系统窗口接口。
+本表以 Windows `v2.0.1` 与 macOS `v2.0.0` 为当前基线，逐个核对共享 React/Rust 实现和平台构建配置。业务功能由同一套前端与 Tauri 命令承载；平台差异只保留在安装、数据目录、密钥设施和系统窗口接口。
 
 ## 跨版本功能清单
 
@@ -17,6 +17,7 @@
 | 1.7.1 | 无标题栏窗口权限修复、窗口拖动/最小化/最大化/关闭、WebView 缓存恢复目录 | 同等实现 | `src-tauri/src/lib.rs`, `src-tauri/tauri.conf.json`, `src-tauri/capabilities/default.json` |
 | 1.8 | 浅色、深色、系统、石墨黑四主题；请求/响应底色和语法色；旧主题回退 | 同等实现 | `src/components/SettingsPanel.tsx`, `src/lib/preferences.ts`, `src/themes.css`, `docs/releases/v1.8.0.md` |
 | 1.8.1 | 直接 Bearer Token、完整变量引用、非法混合花括号/控制字符拒绝 | 同等实现 | `src/components/AuthEditor.tsx`, `src-tauri/src/engine/auth.rs`, `src-tauri/src/store.rs`, `src-tauri/src/engine/tests/v02.rs` |
+| 2.0.1 / 2.0.0 | 快捷键监听稳定化、工作台派生数据记忆化、渲染异常恢复、测试环境兼容、主题弱化文字、启动错误诊断、CSP 加固和版本校验 | 同等共享实现；构建、数据目录和系统适配按平台保留 | `src/App.tsx`, `src/hooks/useWorkbench.ts`, `src/components/ErrorBoundary.tsx`, `src/test/setup.ts`, `src-tauri/src/lib.rs`, `src-tauri/tauri.conf.json`, `scripts/check-version.mjs` |
 
 ## 平台差异
 
@@ -36,7 +37,7 @@
 ## 当前核对结论
 
 - 共享业务入口、请求执行命令、SQLite schema、变量/鉴权、导入导出、临时请求和全部工作台工具在两平台共用。
-- 没有发现仅 Windows 才能使用的业务入口，也没有发现 Mac 额外暴露的业务功能。
+- Windows `v2.0.1` 已补齐 macOS `v2.0.0` 的共享能力；两端的业务入口、请求执行、工作区数据和测试基线保持一致。
 - Mac 仍有与 Windows 一致的产品限制：HTTP/1、无系统代理/自动重试/自动重定向、非 UTF-8 有损展示、无 OAuth/WebSocket/gRPC/脚本/批量测试。
-- 当前验证基线：前端 76 个测试文件、1100 项通过；13 项打包检查通过；直接 Bearer Token 原生回归通过；Intel 与 arm64 Release 均完成构建，arm64 需 M 系列实机再验收。
+- 当前验证基线：Windows `v2.0.1` 与 macOS `v2.0.0` 共用共享功能基线；平台安装器、WebView 和密钥设施仍需分别在各自操作系统完成最终验收。
 - 后续每次 Windows 版本升级，应先在本表新增版本行，再核对共享源码、Mac 构建和对应 UI/原生回归，避免只更新版本号而漏同步功能。

@@ -129,6 +129,20 @@ describe('1.8.0 外观设置', () => {
 });
 
 describe('石墨黑调色板', () => {
+  it('三套主题提供完全一致的令牌集合', () => {
+    const rules = Array.from(sheet.sheet!.cssRules).filter((rule): rule is CSSStyleRule => rule.type === CSSRule.STYLE_RULE);
+    const properties = (style: CSSStyleDeclaration) =>
+      Array.from({ length: style.length }, (_, index) => style[index]).filter(name => name.startsWith('--')).sort();
+    const themes = ['dark', 'light', 'graphite'].map(theme => {
+      const selector = theme === 'dark' ? ':root,\n:root[data-theme=dark]' : `:root[data-theme=${theme}]`;
+      const rule = rules.find(item => item.selectorText === selector || item.selectorText?.includes(`data-theme=${theme}`));
+      expect(rule, `缺少 ${theme} 主题令牌`).toBeDefined();
+      return properties(rule!.style);
+    });
+    expect(themes[1]).toEqual(themes[0]);
+    expect(themes[2]).toEqual(themes[0]);
+  });
+
   it('完整覆盖深色主题令牌，并明确区分请求体和响应体', () => {
     const rules = Array.from(sheet.sheet!.cssRules).filter((rule): rule is CSSStyleRule => rule.type === CSSRule.STYLE_RULE);
     const properties = (style: CSSStyleDeclaration) =>

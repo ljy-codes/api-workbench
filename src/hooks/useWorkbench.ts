@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { ExecuteInput, Pair, Preview, RequestDefinition, RequestDiagnostics, RequestHistoryEntry, ResponseData, Workspace } from '../types';
 import type { Confirmation } from '../components/Dialog';
 import { api, desktop } from '../lib/ipc';
@@ -114,12 +114,15 @@ export function useWorkbench() {
     } catch (error) { setNotice(`自动保存失败，已保留草稿并停止切换：${errorMessage(error)}`); return false; }
     finally { lock.current = false; setBusy(false); }
   };
-  const project = workspace.projects.find(p => p.id === workspace.activeProjectId);
-  const environment = workspace.environments.find(e => e.id === project?.activeEnvironmentId);
-  const projectRequests = workspace.requests.filter(r => workspace.services.some(s => s.id === r.serviceId && s.projectId === project?.id));
-  const storedRequest = projectRequests.find(r => r.id === selectedId);
-  const request = storedRequest ? resolveRequest(storedRequest, environment?.id ?? null) : undefined;
-  const selectedKey = selectedId && environment ? executionKey(selectedId, environment.id) : null;
+  // These derived collections are read by most of the workbench and used to
+  // be rebuilt on every render. Memoizing them avoids repeated scans and
+  // temporary arrays while typing in an editor or receiving a response.
+  const project = useMemo(() => workspace.projects.find(p => p.id === workspace.activeProjectId), [workspace.projects, workspace.activeProjectId]);
+  const environment = useMemo(() => workspace.environments.find(e => e.id === project?.activeEnvironmentId), [workspace.environments, project?.activeEnvironmentId]);
+  const projectRequests = useMemo(() => workspace.requests.filter(r => workspace.services.some(s => s.id === r.serviceId && s.projectId === project?.id)), [workspace.requests, workspace.services, project?.id]);
+  const storedRequest = useMemo(() => projectRequests.find(r => r.id === selectedId), [projectRequests, selectedId]);
+  const request = useMemo(() => storedRequest ? resolveRequest(storedRequest, environment?.id ?? null) : undefined, [storedRequest, environment?.id]);
+  const selectedKey = useMemo(() => selectedId && environment ? executionKey(selectedId, environment.id) : null, [selectedId, environment?.id]);
   useEffect(() => {
     if (!desktop || !selectedId || !environment?.id || !storedRequest) return;
     const key = executionKey(selectedId, environment.id);
@@ -273,13 +276,13 @@ export function useWorkbench() {
   };
   const closeTab = (id: string) => closeTabs([id]);
   const closeAllTabs = () => closeTabs(projectRequests.map(request => request.id));
-  const availableClosedTabs = project?.id
+  const availableClosedTabs = useMemo(() => project?.id
     ? removeInvalidClosedTabs(closedTabs, {
       projectId: project.id,
       requestIds: new Set(projectRequests.map(item => item.id)),
       openTabs: new Set(openTabs),
     })
-    : closedTabs;
+    : closedTabs, [closedTabs, openTabs, project?.id, projectRequests]);
   const restoreClosedTab = async (): Promise<boolean> => {
     if (!project?.id) return false;
     const candidate = nextClosedTab(availableClosedTabs, project.id);
@@ -419,6 +422,7 @@ export function useWorkbench() {
       setNotice(clearBodies ? '已清空所有项目的请求正文、表单内容及响应缓存；接口和其他配置保留。' : '已清空全部响应缓存并回收空间；请求配置保留。');
     }, true);
   };
+  const hasRunning = useMemo(() => Object.values(executions).some(execution => execution.running), [executions]);
   return {
     workspace, project, environment, request, selectedId, loading, busy, dirty, notice, setNotice,
     history, clearHistory, restoreHistory,
@@ -426,7 +430,7 @@ export function useWorkbench() {
     confirmation, setConfirmation, confirm, mutate, updateRequest, save, execute, cancel, preview, load, clearResponse, cleanData,
     openTabs, closeTab, closeTabs, closeAllTabs, copyCurl: () => execute(false, true), importProjectText, importCurlText, readProject, writeProject, readTransferFile, importSelected, applyOpenApi, writeSelected, pickFile, backup,
     closedTabs: availableClosedTabs, canRestoreClosedTab: !!project?.id && availableClosedTabs.some(entry => entry.projectId === project.id), restoreClosedTab,
-    hasRunning: Object.values(executions).some(execution => execution.running),
+    hasRunning,
     execution: selectedKey ? executions[selectedKey] : undefined,
     temporary: selectedKey ? temporary[selectedKey] ?? [] : [],
     setTemporary: (pairs: Pair[]) => { if (!lock.current && selectedKey) { setTemporary(prev => ({ ...prev, [selectedKey]: pairs })); setPreview(null); } },

@@ -1,6 +1,6 @@
 # EnvDock macOS 适配
 
-当前功能基线为 **v1.8.1**。Windows 与 macOS 的业务功能由同一套 React、TypeScript 和 Rust/Tauri 源码提供；跨版本功能逐项对照见 [macOS / Windows 功能对照](macOS-feature-matrix.md)。
+当前功能基线为 Windows **v2.0.1** / macOS **v2.0.0**。两端业务功能由同一套 React、TypeScript 和 Rust/Tauri 共享源码提供；跨版本功能逐项对照见 [macOS / Windows 功能对照](macOS-feature-matrix.md)。
 
 ## 源码分析
 
@@ -59,14 +59,14 @@ macOS 保留 Windows 版本的项目、环境、接口、请求、响应、导�
 
 ## 本次验证（2026-11-17）
 
-- 源码基线：`f93d868`（v1.8.1）；Windows v1.0-v1.8.1 已按对照矩阵核查。
+- 共享源码基线：Windows `v2.0.1` 已同步 macOS `v2.0.0` 的共享改动；平台构建配置按操作系统分别维护。
 - 本机：Intel x86_64 / macOS 13.7.8；Node 25.6、Rust 1.99.1、Xcode SDK 13.3。
 - 前端：76 个源码测试文件、1100 项通过；临时请求测试单独重跑 8/8 通过；TypeScript / Vite 生产构建通过。
 - 打包规则：13 项通过；直接 Bearer Token 原生回归通过。
-- Intel 和 Apple Silicon（arm64）v1.8.1 Release `.app` / `.dmg` 均生成成功，DMG 经 `hdiutil verify` 校验，应用经 `codesign --deep --strict` 和架构检查。
+- Intel 和 Apple Silicon（arm64）macOS 2.0.0 Release `.app` / `.dmg` 均生成成功，DMG 经 `hdiutil verify` 校验，应用经 `codesign --deep --strict` 和架构检查。
 - 已启动 Intel 应用，确认旧工作区、项目、环境和接口正常载入；石墨黑主题即时切换及重启保存通过，随后恢复原深色偏好。
 - 升级前使用 SQLite backup API 保存 app.db（含 WAL 工作区）；升级前后 integrity check 为 `ok` 且逻辑内容一致。
 - M 系列版本由 Intel Mac 交叉编译，未进行 M 系列设备实际启动验证。
 - 应用使用临时 ad-hoc 签名，未使用 Apple Developer ID 签名或公证。
 
-当前交付目录：`publish/EnvDock-1.8.1-macos-release/`，包含 Intel/M 系列 DMG、SHA-256 校验文件、说明、构建信息、验证结果和许可证。打开对应架构的 DMG，将 EnvDock 拖到 Applications。
+当前 macOS 交付目录：`publish/EnvDock-2.0.0-macos-release/`，包含 Intel/M 系列 DMG、SHA-256 校验文件、说明、构建信息、验证结果和许可证。打开对应架构的 DMG，将 EnvDock 拖到 Applications。

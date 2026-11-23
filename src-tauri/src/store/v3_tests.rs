@@ -81,7 +81,7 @@ fn rejects_environment_config_foreign_missing_owners_colors_and_invalid_fields()
         ("timeoutMs", json!(0)),
         ("timeoutMs", json!(u64::MAX)),
         ("bodyType", json!("invalid")),
-        ("auth", json!({"kind":"bearer","token":"plaintext-secret"})),
+        ("auth", json!({"kind":"bearer","token":"{{plaintext-secret"})),
         (
             "form",
             json!([{"id":"f","key":"k","value":"v","enabled":true,"kind":"invalid"}]),

@@ -36,6 +36,12 @@ type Page = 'home' | 'requests' | 'temporary' | 'environments' | 'variables' | '
 export default function App() {
   const model = useWorkbench();
   const temporary = useTemporaryRequests();
+  // Keep the global shortcut listener stable. The workbench model is a new
+  // object on every render, so capturing it in the listener effect would
+  // repeatedly detach and attach a window-level handler during typing.
+  const modelRef = useRef(model);
+  const temporaryRef = useRef(temporary);
+  const openCommandPaletteRef = useRef<() => void>(() => {});
   const [page, setPage] = useState<Page>('requests');
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [jsonToolsOpen, setJsonToolsOpen] = useState(false);
@@ -60,6 +66,7 @@ export default function App() {
   const { sidebarCollapsed, sidebarWidth, editorHeight, editorWidth, layout } = preferences;
   const sideBySide = layout === 'side-by-side';
   const isTemporary = page === 'temporary';
+  const pageRef = useRef(page);
   const openTemporary = () => {
     if (!temporary.tabs.length) temporary.open();
     setPage('temporary');
@@ -73,12 +80,20 @@ export default function App() {
     commandFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     setCommandPaletteOpen(true);
   };
+  modelRef.current = model;
+  temporaryRef.current = temporary;
+  pageRef.current = page;
+  openCommandPaletteRef.current = openCommandPalette;
   useNativeClose({
     desktop, dirty: model.dirty, running: model.hasRunning || temporary.hasRunning, busy: model.busy,
     dialogOpen: !!model.confirmation, confirm: model.confirm, onError: model.setNotice,
   });
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
+      const currentModel = modelRef.current;
+      const currentTemporary = temporaryRef.current;
+      const currentPage = pageRef.current;
+      const currentIsTemporary = currentPage === 'temporary';
       const modifier = event.ctrlKey || event.metaKey;
       const target = event.target instanceof HTMLElement ? event.target : null;
       const isEditorTarget = !!target?.closest('input, textarea, select, [contenteditable="true"], .cm-editor');
@@ -86,41 +101,41 @@ export default function App() {
       if (modifier && event.shiftKey && event.key.toLowerCase() === 'p') {
         event.preventDefault();
         event.stopPropagation();
-        if (!event.repeat && !dialogOpen && !model.confirmation) openCommandPalette();
+        if (!event.repeat && !dialogOpen && !currentModel.confirmation) openCommandPaletteRef.current();
         return;
       }
       if (modifier && event.key.toLowerCase() === 's') {
         event.preventDefault();
         event.stopPropagation();
-        if (!dialogOpen && !model.confirmation && !isTemporary && !event.repeat && !event.isComposing && !model.busy && !model.loading && desktop) void model.save();
+        if (!dialogOpen && !currentModel.confirmation && !currentIsTemporary && !event.repeat && !event.isComposing && !currentModel.busy && !currentModel.loading && desktop) void currentModel.save();
         return;
       }
       if (modifier && event.key === 'Enter' && !event.isComposing) {
         event.preventDefault();
         event.stopPropagation();
-        if (!dialogOpen && !model.confirmation && !event.repeat) {
-          if (isTemporary) void temporary.execute();
-          else if (page === 'requests') void model.execute();
+        if (!dialogOpen && !currentModel.confirmation && !event.repeat) {
+          if (currentIsTemporary) void currentTemporary.execute();
+          else if (currentPage === 'requests') void currentModel.execute();
         }
         return;
       }
-      if (dialogOpen || model.confirmation) return;
+      if (dialogOpen || currentModel.confirmation) return;
       if (modifier && event.shiftKey && event.key.toLowerCase() === 't') {
         event.preventDefault();
         event.stopPropagation();
-        if (!event.repeat && !isEditorTarget && !model.busy && !model.loading) void model.restoreClosedTab().then(restored => { if (restored) setPage('requests'); });
+        if (!event.repeat && !isEditorTarget && !currentModel.busy && !currentModel.loading) void currentModel.restoreClosedTab().then(restored => { if (restored) setPage('requests'); });
         return;
       }
       if (modifier && event.key.toLowerCase() === 'w') {
         event.preventDefault();
         event.stopPropagation();
-        if (!event.repeat && !isEditorTarget && page === 'requests' && model.selectedId && !model.busy && !model.loading) void model.closeTab(model.selectedId);
+        if (!event.repeat && !isEditorTarget && currentPage === 'requests' && currentModel.selectedId && !currentModel.busy && !currentModel.loading) void currentModel.closeTab(currentModel.selectedId);
         return;
       }
     };
     window.addEventListener('keydown', handler, true);
     return () => window.removeEventListener('keydown', handler, true);
-  }, [model, temporary, isTemporary, page]);
+  }, []);
   const nav = [
     { page: 'requests' as const, label: '接口工作台', Icon: Layers3 },
     { page: 'temporary' as const, label: '临时请求', Icon: Zap },
