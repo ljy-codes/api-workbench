@@ -1,0 +1,55 @@
+{
+  "name": "api-workbench",
+  "private": true,
+  "version": "2.0.2",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20.19 <26"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "tsc -b && vite build",
+    "test": "vitest run --maxWorkers=2 --testTimeout=15000",
+    "test:ci": "vitest run --maxWorkers=2 --testTimeout=15000",
+    "test:packaging": "node --test scripts/test-packaging.mjs",
+    "check:version": "node scripts/check-version.mjs",
+    "test:watch": "vitest",
+    "tauri": "tauri",
+    "desktop": "powershell -ExecutionPolicy Bypass -File scripts/dev.ps1",
+    "desktop:windows": "powershell -ExecutionPolicy Bypass -File scripts/dev.ps1",
+    "build:mac": "sh scripts/mac.sh build",
+    "desktop:mac": "sh scripts/mac.sh dev",
+    "build:mac:arm64": "sh scripts/mac.sh build-arm64",
+    "check:parity": "node scripts/check-platform-parity.mjs"
+  },
+  "dependencies": {
+    "@codemirror/lang-json": "^6",
+    "@codemirror/language": "6.12.4",
+    "@lezer/highlight": "1.2.4",
+    "@tauri-apps/api": "2.12.1",
+    "@uiw/react-codemirror": "^4",
+    "lucide-react": "^0.468.0",
+    "react": "^19",
+    "react-dom": "^19",
+    "yaml": "^2.9.1"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2",
+    "@testing-library/jest-dom": "^6",
+    "@testing-library/react": "^16",
+    "@testing-library/user-event": "^14",
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^24",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^5",
+    "jsdom": "^26",
+    "typescript": "^5",
+    "vite": "^7.3.8",
+    "vitest": "^4.1.12"
+  },
+  "overrides": {
+    "source-map-js": "^1.2.2"
+  }
+}

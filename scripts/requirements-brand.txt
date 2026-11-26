@@ -1,0 +1,2 @@
+# Asset authoring only. The packaged app has no Python dependency.
+Pillow==13.0.0
