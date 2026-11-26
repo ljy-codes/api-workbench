@@ -17,8 +17,8 @@ if [ -x "$PWD/.tools/cargo/bin/cargo" ]; then
 fi
 case "${1:-dev}" in
   dev) exec npm exec -- tauri dev ;;
-  build) exec npm exec -- tauri build --locked --bundles app,dmg ;;
-  build-arm64) exec npm exec -- tauri build --locked --target aarch64-apple-darwin --bundles app,dmg ;;
+  build) exec npm exec -- tauri build --bundles app,dmg -- --locked ;;
+  build-arm64) exec npm exec -- tauri build --target aarch64-apple-darwin --bundles app,dmg -- --locked ;;
   test) export RUST_TEST_THREADS="${RUST_TEST_THREADS:-1}"; exec cargo test --locked --manifest-path src-tauri/Cargo.toml ;;
   *) echo 'Usage: sh scripts/mac.sh [dev|build|build-arm64|test]' >&2; exit 2 ;;
 esac
