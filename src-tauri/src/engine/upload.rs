@@ -44,7 +44,7 @@ fn open_regular(value: &str) -> Result<File, String> {
             continue;
         }
         let metadata = fs::symlink_metadata(&checked).map_err(|_| "上传文件路径不可访问")?;
-        if is_link(&metadata) {
+        if is_link(&metadata) && !crate::platform_paths::is_system_alias(&checked) {
             return Err("上传文件路径不允许符号链接或重解析点".into());
         }
     }

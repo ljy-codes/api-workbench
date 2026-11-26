@@ -1,20 +1,20 @@
 # EnvDock
 
-Windows 优先的纯本地接口调试工具。当前版本为 **2.0.1**，提供 Windows x64 安装版，另可构建便携预览版。功能范围见下文，并非完整 Postman 替代品。GitHub 仓库继续使用 `api-workbench`，软件英文名为 **EnvDock**。
+纯本地接口调试工具，使用 React、TypeScript、Rust/Tauri 与 SQLite。当前共享功能和图标以 `main` 为唯一来源，`windows` 与 `macos` 分别负责系统实现与发布。业务数据只在本机保存。
 
-## GitHub 仓库结构与版本规定
+## 分工与当前版本
 
-GitHub 长期只保留 `main`、`windows`、`macos` 三条分支。`main` 保存共享 React / TypeScript / Rust / SQLite / IPC 实现及项目说明；`windows` 和 `macos` 保存各自平台的构建、系统适配和发布记录。接口编辑、变量、鉴权、请求执行、响应处理和数据结构等共享能力先在 `main` 完成，再同步到两个平台分支。
+| 分支 | 职责 | 要求 |
+| --- | --- | --- |
+| `main` | 共享功能、UI、数据模型、IPC、请求引擎、品牌母版与一致性检查 | 功能主线 |
+| `windows` | Windows 系统实现、安装器与交付 | 功能和图标与 main 一致 |
+| `macos` | macOS 系统实现、应用包与 DMG | 功能和图标与 main 一致 |
 
-新版本 tag 必须使用 `v<X.Y.Z>-windows` 或 `v<X.Y.Z>-macos`。当前 Windows 版本为 `2.0.1` / `v2.0.1-windows`，macOS 版本为 `2.0.0` / `v2.0.0-macos`。每个平台只保留最新 Release 和标签，旧版本通过 Git 提交历史追溯；临时 `codex/*` 分支完成交付后删除。完整规则见 [GitHub 分支与版本规定](docs/platform-branch-and-version-policy.md)。
+系统 API、密钥设施、数据路径、窗口、签名与打包的实现方式可以不同。功能行为、数据契约和图标保持一致。完整规则见 [分支与版本规定](docs/platform-branch-and-version-policy.md)。
 
-## 当前交付
+macOS 本次版本为 **2.0.2**，采用 B「双舱桥」图标，详见 [macOS 2.0.2 发布说明](docs/releases/v2.0.2-macos.md)。Windows 当前已发布安装包为 **2.0.1**；新图标源码已经准备同步，重新构建及系统验收由 Windows 构建端完成。版本采用 macOS 偶数修订号、Windows 奇数修订号，不能仅凭版本数字判断功能差异。
 
-**Windows 2.0.1 / macOS 2.0.0**：两端使用同一套 React、TypeScript、Rust/Tauri 共享源码。当前 Windows 发布标签为 `v2.0.1-windows`，macOS 发布标签为 `v2.0.0-macos`。业务功能与平台差异见 [macOS / Windows 功能对照](docs/macOS-feature-matrix.md)，本版本详细变更见 [2.0.1 发布说明](docs/releases/v2.0.1.md)。
-
-Windows 本地交付提供 x64 安装器和完整交付 ZIP。GitHub Release 提供安装器、完整 ZIP、使用说明、许可证、迁移脚本和 SHA-256 校验文件；源码直接从仓库获取。交付包不包含业务数据库或真实接口数据。
-
-当前核心能力包括按环境隔离的接口工作台、变量与鉴权、HTTP/1 请求执行、JSON 注释与格式化、JSON 工具、临时请求、时间线、响应对比、问题排查包、OpenAPI 离线导入、导入导出和四套主题。完整使用边界见下文。
+各平台保留一个最新 Release。源码放仓库根目录，交付物放本机 `交付产品/`（不提交源码仓库）；旧源码通过 Git 历史追溯。
 
 ## 开源许可
 
@@ -91,7 +91,7 @@ MIT 是源码使用许可，不是 Windows Authenticode 数字签名；当前 EX
 脚本优先使用本项目 `.tools` 下的隔离 Rust；没有隔离工具链时使用 PATH 中的 Rust。Git 仓库不包含工具链和依赖缓存。请先安装 Node.js、Rust MSVC 工具链，以及包含 C++ 桌面开发组件的 Visual Studio Build Tools / Windows SDK。脚本只修改当前进程环境。
 
 ```powershell
-cd D:\专用工具\接口工具\开发空间
+cd D:\专用工具\接口工具
 npm ci
 .\scripts\dev.ps1
 ```
@@ -248,9 +248,9 @@ cURL HEAD 使用 `--head`；HEAD 同时配置正文时拒绝导出，避免生�
 .\scripts\build-installer.ps1
 ```
 
-输出 `publish\EnvDock-2.0.1-windows-x64\EnvDock-2.0.1-windows-x64-setup.exe`，目录与文件名自动读取当前版本，同时提供说明、可选迁移脚本及 SHA-256 校验和。打包只取程序、前端资源和安装器组件，不内置测试项目、数据库、Yaak 内容或凭据。首次构建 NSIS 工具链可能需要联网。主题插件由仓库内 C++ 源码使用 MSVC x86 工具链编译，不依赖下载第三方换肤插件。
+输出 `publish\EnvDock-<version>-windows-x64\EnvDock-<version>-windows-x64-setup.exe`，目录与文件名自动读取当前版本，同时提供说明、可选迁移脚本及 SHA-256 校验和。打包只取程序、前端资源和安装器组件，不内置测试项目、数据库、Yaak 内容或凭据。首次构建 NSIS 工具链可能需要联网。主题插件由仓库内 C++ 源码使用 MSVC x86 工具链编译，不依赖下载第三方换肤插件。
 
-图标为原创矢量几何图形，源文件 `public/envdock.svg`；`python scripts/generate-brand-assets.py` 可重新生成 PNG、多尺寸 ICO 和安装器位图（仅资产制作需要 Pillow）。修改 NSIS 时应对照 `src-tauri/installer/UPSTREAM.md` 更新并运行参数和清理测试。
+图标采用 B「双舱桥」，唯一母版为 `assets/brand/mark.svg`；`python scripts/generate-brand-assets.py` 统一生成应用内 SVG、PNG、多尺寸 ICO、ICNS 和安装器位图（仅资产制作需要 Pillow），详见 [品牌规范](docs/brand-identity.md)。修改 NSIS 时应对照 `src-tauri/installer/UPSTREAM.md` 更新并运行参数和清理测试。
 
 便携预览版：
 
@@ -258,7 +258,7 @@ cURL HEAD 使用 `--head`；HEAD 同时配置正文时拒绝导出，避免生�
 .\scripts\build-preview.ps1
 ```
 
-输出 `publish\EnvDock-2.0.1-portable-preview`，包含 `EnvDock.exe`、说明和 SHA-256 校验文件。是未签名的 debug 开发预览构建，需要本机已有 WebView2 Runtime；不内置在线更新。直接运行 EXE 即可，数据保存在 EXE 旁的 `ApiWorkbenchData`。
+输出 `publish\EnvDock-<version>-portable-preview`，包含 `EnvDock.exe`、说明和 SHA-256 校验文件。是未签名的 debug 开发预览构建，需要本机已有 WebView2 Runtime；不内置在线更新。直接运行 EXE 即可，数据保存在 EXE 旁的 `ApiWorkbenchData`。
 
 本机回环验收服务（可选）：
 

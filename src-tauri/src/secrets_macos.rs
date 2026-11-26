@@ -18,7 +18,7 @@ const ACCOUNT: &str = "workspace-encryption-key-v1";
 const MAGIC: &[u8] = b"EnvDock-mac-v1\0";
 static KEY_LOCK: Mutex<()> = Mutex::new(());
 
-fn key(create: bool) -> Result<Zeroizing<Vec<u8>>, String> {
+fn keychain_key(create: bool) -> Result<Zeroizing<Vec<u8>>, String> {
     let _guard = KEY_LOCK.lock().map_err(|_| "钥匙串访问失败")?;
     match generic_password(PasswordOptions::new_generic_password(SERVICE, ACCOUNT)) {
         Ok(bytes) if bytes.len() == 32 => Ok(Zeroizing::new(bytes)),
@@ -32,6 +32,19 @@ fn key(create: bool) -> Result<Zeroizing<Vec<u8>>, String> {
         }
         Err(_) => Err("无法读取钥匙串密钥，请解锁登录钥匙串；旧密文需原 Mac 用户密钥".into()),
     }
+}
+
+#[cfg(test)]
+const TEST_KEY: [u8; 32] = [0x42; 32];
+
+fn storage_key(create: bool) -> Result<Zeroizing<Vec<u8>>, String> {
+    #[cfg(test)]
+    {
+        let _ = create;
+        return Ok(Zeroizing::new(TEST_KEY.to_vec()));
+    }
+    #[cfg(not(test))]
+    keychain_key(create)
 }
 
 fn encrypt(value: &str, key: &[u8]) -> Result<Vec<u8>, String> {
@@ -66,7 +79,7 @@ fn decrypt(bytes: &[u8], key: &[u8]) -> Result<String, String> {
 }
 
 pub(super) fn protect(value: &str) -> Result<Vec<u8>, String> {
-    encrypt(value, &key(true)?)
+    encrypt(value, &storage_key(true)?)
 }
 
 pub(super) fn unprotect(bytes: &[u8]) -> Result<String, String> {
@@ -74,7 +87,7 @@ pub(super) fn unprotect(bytes: &[u8]) -> Result<String, String> {
     if !bytes.starts_with(MAGIC) || bytes.len() < MAGIC.len() + 28 {
         return Err("不支持的敏感值格式；Windows DPAPI 数据需重新输入".into());
     }
-    decrypt(bytes, &key(false)?)
+    decrypt(bytes, &storage_key(false)?)
 }
 
 #[cfg(test)]
@@ -101,6 +114,7 @@ mod tests {
     #[ignore = "requires login Keychain access; run explicitly on macOS"]
     fn login_keychain_roundtrip() {
         let value = "EnvDock Keychain 验证";
-        assert_eq!(unprotect(&protect(value).unwrap()).unwrap(), value);
+        let cipher = encrypt(value, &keychain_key(true).unwrap()).unwrap();
+        assert_eq!(decrypt(&cipher, &keychain_key(false).unwrap()).unwrap(), value);
     }
 }

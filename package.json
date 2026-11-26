@@ -1,7 +1,7 @@
 {
   "name": "api-workbench",
   "private": true,
-  "version": "2.0.1",
+  "version": "2.0.2",
   "license": "MIT",
   "type": "module",
   "engines": {
@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "vite --host 127.0.0.1",
     "build": "tsc -b && vite build",
-    "test": "vitest run",
+    "test": "vitest run --maxWorkers=2 --testTimeout=15000",
     "test:ci": "vitest run --maxWorkers=2 --testTimeout=15000",
     "test:packaging": "node --test scripts/test-packaging.mjs",
     "check:version": "node scripts/check-version.mjs",
@@ -20,7 +20,8 @@
     "desktop:windows": "powershell -ExecutionPolicy Bypass -File scripts/dev.ps1",
     "build:mac": "sh scripts/mac.sh build",
     "desktop:mac": "sh scripts/mac.sh dev",
-    "build:mac:arm64": "sh scripts/mac.sh build-arm64"
+    "build:mac:arm64": "sh scripts/mac.sh build-arm64",
+    "check:parity": "node scripts/check-platform-parity.mjs"
   },
   "dependencies": {
     "@codemirror/lang-json": "^6",

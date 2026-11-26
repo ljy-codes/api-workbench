@@ -586,8 +586,8 @@
   color: var(--chrome-muted);
 }
 :root .rail .brand-mark {
-  opacity: .62;
-  filter: saturate(.45);
+  opacity: 1;
+  filter: none;
   background: transparent;
   border-color: transparent;
 }

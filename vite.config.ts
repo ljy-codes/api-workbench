@@ -15,5 +15,5 @@ export default defineConfig({
       },
     },
   },
-  test: { environment: "jsdom", globals: true, css: false, setupFiles: ["./src/test/setup.ts"], exclude: [...configDefaults.exclude, "experiments/**"] },
+  test: { environment: "jsdom", globals: true, css: false, setupFiles: ["./src/test/setup.ts"], exclude: [...configDefaults.exclude, "experiments/**", "scripts/**"] },
 });

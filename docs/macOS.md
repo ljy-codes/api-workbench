@@ -1,6 +1,6 @@
 # EnvDock macOS 适配
 
-当前功能基线为 Windows **v2.0.1** / macOS **v2.0.0**。两端业务功能由同一套 React、TypeScript 和 Rust/Tauri 共享源码提供；跨版本功能逐项对照见 [macOS / Windows 功能对照](macOS-feature-matrix.md)。
+当前功能基线为 共享 main / macOS **v2.0.2**。两端业务功能由同一套 React、TypeScript 和 Rust/Tauri 共享源码提供；跨版本功能逐项对照见 [macOS / Windows 功能对照](macOS-feature-matrix.md)。
 
 ## 源码分析
 
@@ -39,13 +39,13 @@ npm run build:mac:arm64
 M 系列输出位于 `src-tauri/target/aarch64-apple-darwin/release/bundle/`。交叉编译不能代替 M 系列设备的实际启动验证。
 
 ```sh
-NODE_OPTIONS=--no-experimental-webstorage npm test -- --maxWorkers=2
+npm run test:ci
 npm run build
 npm run test:packaging
 sh scripts/mac.sh test
 ```
 
-Node 25 默认的实验性 Web Storage 与原有 jsdom 测试冲突，测试时需关闭该特性。
+测试初始化已兼容 Node 25 的实验性 Web Storage；默认使用两个 worker，避免低资源机器并发过高。Rust 单元测试使用内存密钥，不访问真实登录钥匙串。
 钥匙串集成测试单独执行：`cargo test --manifest-path src-tauri/Cargo.toml login_keychain_roundtrip -- --ignored`，系统可能请求钥匙串访问。
 
 本地构建没有 Apple Developer ID 签名和公证。分发给其他 Mac 前应使用自己的开发者证书签名并公证，不要全局关闭 Gatekeeper。
@@ -57,16 +57,10 @@ macOS 保留 Windows 版本的项目、环境、接口、请求、响应、导�
 
 数据库 schema、IPC 命令、请求执行协议、响应缓存、Bundle ID `local.apiworkbench.desktop` 和钥匙串服务保持兼容，没有新增 Mac 专用业务入口。
 
-## 本次验证（2026-11-17）
+## 本次交付
 
-- 共享源码基线：Windows `v2.0.1` 已同步 macOS `v2.0.0` 的共享改动；平台构建配置按操作系统分别维护。
-- 本机：Intel x86_64 / macOS 13.7.8；Node 25.6、Rust 1.99.1、Xcode SDK 13.3。
-- 前端：76 个源码测试文件、1100 项通过；临时请求测试单独重跑 8/8 通过；TypeScript / Vite 生产构建通过。
-- 打包规则：13 项通过；直接 Bearer Token 原生回归通过。
-- Intel 和 Apple Silicon（arm64）macOS 2.0.0 Release `.app` / `.dmg` 均生成成功，DMG 经 `hdiutil verify` 校验，应用经 `codesign --deep --strict` 和架构检查。
-- 已启动 Intel 应用，确认旧工作区、项目、环境和接口正常载入；石墨黑主题即时切换及重启保存通过，随后恢复原深色偏好。
-- 升级前使用 SQLite backup API 保存 app.db（含 WAL 工作区）；升级前后 integrity check 为 `ok` 且逻辑内容一致。
-- M 系列版本由 Intel Mac 交叉编译，未进行 M 系列设备实际启动验证。
-- 应用使用临时 ad-hoc 签名，未使用 Apple Developer ID 签名或公证。
+macOS 2.0.2 使用 B「双舱桥」图标和共享 main 功能基线，SQLite schema、Bundle ID、数据目录与钥匙串服务保持兼容。
 
-当前 macOS 交付目录：`publish/EnvDock-2.0.0-macos-release/`，包含 Intel/M 系列 DMG、SHA-256 校验文件、说明、构建信息、验证结果和许可证。打开对应架构的 DMG，将 EnvDock 拖到 Applications。
+构建输出为 `src-tauri/target/release/bundle/`（Intel）与 `src-tauri/target/aarch64-apple-darwin/release/bundle/`（arm64）。整理后的当前交付存于本机 `交付产品/EnvDock-macOS-2.0.2/`，包含 DMG、校验文件、许可证、构建与验证信息。
+
+Intel 版本必须完成安装启动验证；arm64 需在 Apple Silicon 设备上完成最终启动验收。具体结果以交付目录的 `VERIFICATION.json` 为准。

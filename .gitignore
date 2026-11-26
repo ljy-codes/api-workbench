@@ -25,3 +25,11 @@ src-tauri/installer/plugins/
 # Local-only verification and maintenance records may contain business data.
 /docs/test.md
 /docs/cleanup-2026-10-08.md
+
+# Local delivery and macOS metadata
+交付产品/
+.DS_Store
+
+# Python asset-authoring cache
+__pycache__/
+*.pyc

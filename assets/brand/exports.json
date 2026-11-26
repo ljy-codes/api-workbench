@@ -1,0 +1,22 @@
+{
+  "master": "assets/brand/mark.svg",
+  "identity": "paired-chambers-b",
+  "masterSha256": "a2334b2104b18539238e076c31214b30a6e10ed539cbf22e2aba98187b3c031c",
+  "palette": {
+    "background": "#17120E",
+    "main": "#F3E9DC",
+    "accent": "#FB923C"
+  },
+  "opticalSizes": {
+    "16-24": "paired chambers without central detail pillars",
+    "32-1024": "full shared mark"
+  },
+  "files": {
+    "public/envdock.svg": "a2334b2104b18539238e076c31214b30a6e10ed539cbf22e2aba98187b3c031c",
+    "src-tauri/icons/icon.png": "a6f7e5b7e3a74f0f93fa7aed178175b57f9df7d15925d06bf9b9537b6d949253",
+    "src-tauri/icons/icon.ico": "9a39badab31db3fac249eedc74650a28c174e1462fbe150ff1a9d855bd777b23",
+    "src-tauri/icons/icon.icns": "4b71f1ce0bd8662d6687daf7b3aa195fc904bea849566f4686e8e1efe49abd72",
+    "src-tauri/installer/sidebar.bmp": "92589b5ae4366c88e2cbdfea84f25a2795ff93bbc785f1f44af3ab75ca000e95",
+    "src-tauri/installer/header.bmp": "7041fcf11ef07d4991db951b5595296f27fa7e6f44b618e677f31e8ab904ea80"
+  }
+}

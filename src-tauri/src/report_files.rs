@@ -59,13 +59,16 @@ fn validate_path(path: &Path) -> Result<(), String> {
             }
             Err(_) => return Err(SAVE_ERROR.into()),
         };
-        if is_link(&metadata)
+        let allowed_alias = crate::platform_paths::is_system_alias(&checked);
+        let is_directory = metadata.is_dir()
+            || (allowed_alias && fs::metadata(&checked).is_ok_and(|target| target.is_dir()));
+        let rejected = (is_link(&metadata) && !allowed_alias)
             || if checked == path {
                 !metadata.is_file()
             } else {
-                !metadata.is_dir()
-            }
-        {
+                !is_directory
+            };
+        if rejected {
             return Err(SAVE_ERROR.into());
         }
     }

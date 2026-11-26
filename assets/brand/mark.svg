@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <!-- EnvDock B / Paired Chambers. This is the only editable brand master. -->
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#33271F"/>
+      <stop offset="1" stop-color="#17120E"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#FFFFFF" stop-opacity="0.20"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.025"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="57" fill="url(#tile)"/>
+  <rect x="0.6" y="0.6" width="254.8" height="254.8" rx="56.4" fill="none" stroke="url(#edge)" stroke-width="1.2"/>
+  <path fill="#F3E9DC" d="M56 64 H142 Q152 64 152 74 V104 H122 V94 H82 V134 H100 V164 H56 Q50 164 50 158 V70 Q50 64 56 64Z"/>
+  <path fill="#FB923C" d="M156 92 H200 Q206 92 206 98 V186 Q206 192 200 192 H114 Q104 192 104 182 V152 H134 V162 H174 V122 H156Z"/>
+  <path data-small-hidden="true" fill="#F3E9DC" d="M96 108 H120 V148 H96Z"/>
+  <path data-small-hidden="true" fill="#FB923C" d="M136 108 H160 V148 H136Z"/>
+</svg>

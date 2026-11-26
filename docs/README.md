@@ -4,6 +4,8 @@
 
 ## 当前文档
 
+- [统一 B 图标](brand-identity.md)：唯一 SVG 母版、三端导出和 SHA-256 校验。
+- [macOS 2.0.2 发布说明](releases/v2.0.2-macos.md)：统一 B 图标、主线同步与 Mac 交付边界。
 - [共享契约](contract.md)：TypeScript / Rust DTO、IPC 和数据边界。
 - [GitHub 分支与版本规定](platform-branch-and-version-policy.md)：三条长期分支、版本号、标签和 Release 规则。
 - [macOS 适配](macOS.md)：构建、数据目录、钥匙串和平台限制。

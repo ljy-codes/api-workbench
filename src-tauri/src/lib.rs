@@ -5,6 +5,7 @@ mod executions;
 pub mod models;
 mod project_files;
 mod report_files;
+mod platform_paths;
 mod secrets;
 pub mod store;
 
@@ -402,7 +403,8 @@ fn build_main_window(app: &mut tauri::App) -> Result<(), Box<dyn std::error::Err
         .map(|_| ())
         .map_err(|recovery_error| {
             format!(
-                "WebView2 创建失败。默认目录 {}：{}；恢复目录 {}：{}",
+                "{} 创建失败。默认目录 {}：{}；恢复目录 {}：{}",
+                if cfg!(target_os = "macos") { "WebKit" } else { "WebView2" },
                 primary_data_dir.display(),
                 primary_error,
                 recovery_data_dir.display(),
@@ -438,7 +440,7 @@ pub fn run() -> Result<(), Box<dyn std::error::Error>> {
             })();
             if let Err(error) = &result {
                 let message = format!(
-                    "EnvDock 无法启动。请检查本地数据目录权限和 Windows WebView2 环境。\n\n{error}"
+                    "EnvDock 无法启动。请检查本地数据目录权限和系统 WebView 环境。\n\n{error}"
                 );
                 let _ = app
                     .dialog()

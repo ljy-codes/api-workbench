@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createHash } from 'node:crypto';
 
 const root = new URL('../', import.meta.url);
 const read = path => readFileSync(new URL(path, root), 'utf8');
@@ -82,6 +83,58 @@ test('version and storage paths remain compatible', () => {
   const native = read('src-tauri/src/lib.rs');
   assert.match(native, /join\("ApiWorkbench"\)/);
   assert.match(native, /join\("ApiWorkbenchData"\)/);
+});
+
+test('all platform icon exports match the shared paired-chambers brand master', () => {
+  const manifest = JSON.parse(read('assets/brand/exports.json'));
+  const master = readFileSync(new URL(manifest.master, root));
+  const digest = bytes => createHash('sha256').update(bytes).digest('hex');
+  assert.equal(manifest.identity, 'paired-chambers-b');
+  assert.equal(digest(master), manifest.masterSha256);
+  assert.deepEqual(readFileSync(new URL('public/envdock.svg', root)), master);
+  assert.match(master.toString(), /viewBox="0 0 256 256"/);
+  assert.match(master.toString(), /#F3E9DC/);
+  assert.match(master.toString(), /#FB923C/);
+  assert.doesNotMatch(master.toString(), /#39E0D0|#438FFF/i);
+  for (const path of [
+    'public/envdock.svg', 'src-tauri/icons/icon.png', 'src-tauri/icons/icon.ico',
+    'src-tauri/icons/icon.icns', 'src-tauri/installer/header.bmp', 'src-tauri/installer/sidebar.bmp',
+  ]) {
+    assert.equal(digest(readFileSync(new URL(path, root))), manifest.files[path], `${path} is stale`);
+  }
+});
+
+test('desktop icons include correct PNG, ICO and macOS ICNS image sizes', () => {
+  const png = readFileSync(new URL('src-tauri/icons/icon.png', root));
+  assert.equal(png.subarray(1, 4).toString(), 'PNG');
+  assert.equal(png.readUInt32BE(16), 256);
+  assert.equal(png.readUInt32BE(20), 256);
+  const ico = readFileSync(new URL('src-tauri/icons/icon.ico', root));
+  assert.deepEqual(Array.from({ length: ico.readUInt16LE(4) }, (_, index) => ico[6 + 16 * index] || 256), [16, 24, 32, 48, 64, 128, 256]);
+  const icns = readFileSync(new URL('src-tauri/icons/icon.icns', root));
+  assert.equal(icns.subarray(0, 4).toString(), 'icns');
+  assert.equal(icns.readUInt32BE(4), icns.length);
+  const sizes = [];
+  for (let offset = 8; offset < icns.length;) {
+    const length = icns.readUInt32BE(offset + 4);
+    assert.ok(length > 8 && offset + length <= icns.length);
+    const image = icns.subarray(offset + 8, offset + length);
+    assert.equal(image.subarray(1, 4).toString(), 'PNG');
+    assert.equal(image.readUInt32BE(16), image.readUInt32BE(20));
+    sizes.push(image.readUInt32BE(16));
+    offset += length;
+  }
+  assert.deepEqual(sizes, [16, 32, 64, 128, 256, 512, 1024]);
+});
+
+test('macOS bundle uses the shared ICNS master export and stable application identity', () => {
+  const mac = JSON.parse(read('src-tauri/tauri.macos.conf.json'));
+  assert.deepEqual(mac.bundle.targets, ['app', 'dmg']);
+  assert.deepEqual(mac.bundle.icon, ['icons/icon.icns']);
+  assert.equal(mac.bundle.macOS.minimumSystemVersion, '10.15');
+  assert.equal(mac.bundle.macOS.signingIdentity, '-');
+  assert.deepEqual(mac.bundle.resources, { '../LICENSE': 'LICENSE.txt', '../public/third-party-notices.txt': 'THIRD-PARTY-LICENSE-YAML.txt' });
+  assert.equal(config.identifier, 'local.apiworkbench.desktop');
 });
 
 test('release installer and portable builds have separate feature selections', () => {

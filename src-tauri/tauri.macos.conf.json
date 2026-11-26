@@ -10,6 +10,10 @@
     "macOS": {
       "minimumSystemVersion": "10.15",
       "signingIdentity": "-"
+    },
+    "resources": {
+      "../LICENSE": "LICENSE.txt",
+      "../public/third-party-notices.txt": "THIRD-PARTY-LICENSE-YAML.txt"
     }
   }
 }

@@ -1,146 +1,73 @@
-# EnvDock GitHub 分支与版本规定
+# EnvDock GitHub 分支、功能与图标规定
 
-本文是 `api-workbench` 仓库的长期维护规则。目标是让 GitHub 中的源码、平台分支、版本标签和历史版本各自有明确位置。
+`api-workbench` 只保留 `main`、`windows`、`macos` 三条长期分支。**两端的业务功能和图标必须一致；操作系统实现方式可以不同。**
 
-## 1. GitHub 长期结构
+## 分工
 
-仓库只保留三条长期分支：
+| 分支 | 负责范围 | 不允许的分叉 |
+| --- | --- | --- |
+| `main` | 功能主线：共享 React / TypeScript UI、Rust 业务引擎、SQLite 模型和迁移、IPC 契约、测试、品牌图标母版 | 不作为只放说明的空分支，不让平台分支各自维护接口编辑器、变量解析或请求规则 |
+| `windows` | 从 `main` 同步完整功能；实现 Windows 窗口、WebView2、DPAPI、路径检查、NSIS、PowerShell、签名与安装交付 | 不省略共享功能，不自行重画图标，不把平台实现差异变成业务行为差异 |
+| `macos` | 从 `main` 同步完整功能；实现 macOS 窗口、WebKit、Keychain、路径检查、`.app/.dmg`、签名与安装交付 | 不省略共享功能，不自行重画图标，不因为同步而覆盖已有 Mac 修复 |
 
-```text
-main
-├── 共享 React / TypeScript / Rust / SQLite / IPC / 请求引擎
-├── 跨平台数据模型与业务规则
-└── 项目说明、功能矩阵、版本与发布规定
+两个平台都保留完整可构建的工程。平台专属代码可以通过条件编译、平台配置和系统适配模块实现；不要求使用同一种系统 API、工具链或安装方式。
 
-windows
-├── 从 main 同步的完整源码
-├── Windows Tauri 配置、NSIS 安装器和 PowerShell 脚本
-├── Windows DPAPI、WebView2 和窗口适配
-└── Windows 安装包与便携版发布记录
+项目、服务、目录、接口、环境、变量、鉴权、请求执行、响应处理、导入导出、JSON 工具、临时请求、时间线和诊断等用户能力必须在两端可用。功能一致性同时依靠源码核对、共享自动测试和目标操作系统的实际运行验收。
 
-macos
-├── 从 main 同步的完整源码
-├── macOS Tauri 配置、应用包和 DMG 配置
-├── macOS Keychain、WebKit 和窗口适配
-└── Intel / Apple Silicon 发布记录
+## 功能同步流程
+
+1. 共享功能先合入 `main`；平台系统实现进入对应分支。
+2. 平台分支发布前同步 `main`，解决冲突时保留目标平台的路径、密钥、窗口和构建实现。
+3. 三个分支采用相同的工程根目录结构，避免相同文件因 `开发空间/` 等外层目录不同而产生重复工程。
+4. 运行 [功能矩阵](macOS-feature-matrix.md) 中的共享回归及平台验收，再运行跨分支一致性校验。
+5. 只有实际在目标系统编译、安装、启动及核对过的包，才能在 Release 中写为该平台已验证。
+
+不要使用 `git reset --hard main` 覆盖平台分支。冲突解决应逐项核对：共享业务采用主线，系统适配保留目标系统实现。旧分支的 Mac 测试密钥隔离、系统目录别名规则等修复，不能因版本号或目录整理被丢弃。
+
+## 图标一致性
+
+用户选定 **B「双舱桥」** 作为统一图标。两个错位舱体对应请求编辑与响应检查，使用暖石墨、米白与铜橙配色。
+
+- 唯一母版：`assets/brand/mark.svg`；应用内使用的 `public/envdock.svg` 与母版一致。
+- `src-tauri/icons/icon.png`、`icon.ico`、`icon.icns` 及安装器品牌位图都从母版派生，不在平台分支手动改画。
+- 同一资源路径在三个分支的内容应一致；不同输出格式自然有不同的文件内容。
+- `assets/brand/exports.json` 记录母版与导出资源的 SHA-256，生成脚本提供 `--check` 校验。
+- macOS 与 Windows 可以采用各自的系统图标包装和缓存刷新方式；品牌造型、颜色及小尺寸简化规则保持一致。
+- 修改母版后应一起更新所有平台格式，避免源码 SVG 是新图标而桌面仍用旧图标。
+
+## 跨分支一致性校验
+
+在三个分支同步并提交后执行：
+
+```sh
+node scripts/check-platform-parity.mjs --base main --targets windows,macos
+node scripts/check-platform-parity.mjs --base main --targets windows,macos --json
+node --test scripts/check-platform-parity.test.mjs
 ```
 
-`main` 不是只放说明的空分支。共享业务代码必须在 `main` 保持唯一来源，避免 Windows 和 macOS 各自复制一份请求编辑器、请求引擎或 SQLite 逻辑后逐渐漂移。平台分支保留完整工程，用于平台适配、平台构建和最终发布。
+也可以用 `--base origin/main --targets origin/windows,origin/macos` 检查已拉取的远端引用，或用 `--repo <checkout>` 指定仓库。工具兼容旧 Mac 分支的 `开发空间/` 前缀，用于迁移时核对；最终工程结构统一在根目录。
 
-平台差异只能进入平台配置、系统 API 适配、安装器、签名和交付脚本。接口编辑、变量、鉴权、请求执行、响应处理、导入导出和数据结构等共享能力，先在 `main` 完成，再同步到 `windows` 和 `macos`。
+工具执行的检查是：
 
-## 2. 分支操作规定
+- 对共享 `src/`（含测试）、Rust 业务源文件与数据库迁移逐文件比较内容及 Git 文件模式，发现遗漏、额外文件和内容差异均失败；不是只检查文件是否存在。
+- 比较图标母版、SVG、PNG、ICNS、ICO、导出清单、安装器品牌位图和生成脚本，并输出品牌文件 SHA-256。
+- 比较 Tauri 注册的 IPC 命令集合及 `lib.rs` 中 `data_directory()` 之前的共享命令实现内容，防止同名命令发生业务漂移；启动区仍允许系统实现差异。
+- 将 `lib.rs`、`platform_paths.rs`、密钥保护、文件系统检查、`scripts/mac.sh` 等明确的系统适配差异单独列出，不要求系统 API 相同。
+- 版本号、平台配置、安装器和发布说明允许不同，不拿其文件差异判断业务能力不同。
 
-### 2.1 日常开发
+校验通过只证明共享代码及品牌资源对齐。系统适配文件仍需人工审查和原生测试；不能据此宣称 Windows EXE 已在 Mac 上完成实测，也不能用 Intel 交叉编译代替 Apple Silicon 真机启动。
 
-1. 共享功能从 `main` 开始开发。
-2. Windows 专属修改进入 `windows`。
-3. macOS 专属修改进入 `macos`。
-4. 平台分支发布前必须同步当前 `main`，并核对 `docs/macOS-feature-matrix.md`。
-5. 临时分支可使用 `codex/*`、`feature/*` 或 `fix/*`，完成合并或交付后删除，不作为长期入口。
+## 版本、标签与发布
 
-### 2.2 提交边界
+- 版本格式为 `主版本.次版本.修订版本`，macOS 使用偶数修订号（如 `2.0.2`），Windows 使用奇数修订号（如 `2.0.3`）。
+- 同一功能基线的两个平台可以采用不同修订号；功能是否一致以共享提交、功能矩阵与验收为准。
+- 标签使用 `v<X.Y.Z>-macos` 或 `v<X.Y.Z>-windows`，指向已完成对应版本校验的提交。
+- Release 正文写明共享源码提交、平台源码提交、构建环境、图标版本、测试结果、已知限制和 SHA-256 校验文件。
+- Windows 上传 Windows 安装器或完整 ZIP；macOS 上传 Intel/Apple Silicon DMG。未在目标系统重新构建的旧安装包，不改名冒充新图标或新版本。
+- GitHub 每个平台只保留当前最终 Release 和标签；只有新版安装包、许可证、校验文件和说明齐全后才替换旧下载入口。
+- 不改名或重新指向已经发布的版本标签来代替新版本；历史源码使用 Git 提交历史追溯。
+- 默认分支保持 `main`，临时 `codex/*` 等分支交付后删除。交付包、缓存、数据库、凭据和本机备份不提交源码仓库。
 
-- `main`：共享源码、跨平台契约、测试、文档和功能基线。
-- `windows`：Windows 构建、安装、卸载、WebView2、DPAPI 和 Windows 交付说明。
-- `macos`：macOS 构建、`.app` / `.dmg`、Keychain、签名和 macOS 交付说明。
-- 交付包、数据库、真实接口数据、凭据和本机安装备份不提交到源码仓库。
+## 当前任务边界
 
-### 2.3 GitHub 页面清理
-
-- GitHub 默认分支保持 `main`。
-- 长期分支只展示 `main`、`windows`、`macos`。
-- `codex/macos-2.0.0` 这类一次性工作分支完成整理后删除。
-- 旧版本不通过重复长期分支保存；源码通过 Git 提交历史追溯，不再长期保留重复 tag 和 Release。
-
-## 3. 版本号与标签规定
-
-### 3.1 版本号
-
-版本号采用 `主版本.次版本.修订版本`：
-
-```text
-X.Y.Z
-```
-
-- 主版本：不兼容的产品或数据契约变化。
-- 次版本：新增兼容功能。
-- 修订版本：兼容的修复、性能和界面调整。
-- 同一功能基线的 Windows 与 macOS 可以有不同修订号，平台是否一致以功能矩阵和共享提交为准。
-
-当前平台版本规定沿用已发布方案：
-
-- macOS 使用偶数修订号，例如 `2.0.0`。
-- Windows 使用奇数修订号，例如 `2.0.1`。
-- 例如同一条 2.0 功能线，macOS 为 `2.0.0` 时，Windows 对应为 `2.0.1`。
-- 历史版本不改名、不重写；当前清理后每个平台只保留最新版本标签，后续发布必须带平台后缀。
-
-### 3.2 Git tag
-
-新版本 tag 必须带平台后缀：
-
-```text
-v<X.Y.Z>-windows
-v<X.Y.Z>-macos
-```
-
-当前已整理的版本：
-
-| 平台 | 分支 | 版本 | Git tag |
-| --- | --- | --- | --- |
-| Windows | `windows` | `2.0.1` | `v2.0.1-windows` |
-| macOS | `macos` | `2.0.0` | `v2.0.0-macos` |
-
-不带平台后缀的旧版本号不再用于新发布。tag 必须指向完成版本校验的提交，不指向临时开发分支。
-
-### 3.3 GitHub Release
-
-每个最终版本在发布时建立对应平台的 GitHub Release：
-
-- Windows Release 使用 `v<X.Y.Z>-windows`。
-- macOS Release 使用 `v<X.Y.Z>-macos`。
-- Release 标题包含平台和版本，例如 `EnvDock Windows 2.0.1`。
-- Release 正文必须写明源码提交、构建环境、验证范围、已知限制和 SHA-256 校验文件。
-- Windows Release 上传 Windows 安装器、完整 ZIP、许可证和校验文件。
-- macOS Release 上传 Intel 与 Apple Silicon 的 DMG、许可证、构建记录和校验文件。
-- 同一平台发布新版后，用新版 Release 替换旧 Release；GitHub 页面只保留每个平台的最新下载入口。
-
-## 4. 版本归档与精简
-
-仓库和本地目录保持单一最新交付，不建立重复归档层：
-
-```text
-GitHub
-├── Branches: main / windows / macos
-├── Releases: Windows / macOS 各一个最新版本
-└── Tags: Windows / macOS 各一个当前版本标签
-
-本地交付目录
-└── 交付产品
-    └── 当前平台版本
-```
-
-旧版本源码通过 Git 提交历史追溯。替换当前 Release 前，必须确认新版已提供安装包、校验文件、许可证和迁移说明；不在本地保留 `archive`，也不为每个历史版本重复创建长期 Release。
-
-## 5. 发布前检查
-
-发布任何平台版本前，必须完成：
-
-1. 分支名称、版本号、tag 后缀和 Release 标题一致。
-2. `main` 的共享功能已经同步到目标平台分支。
-3. 平台功能矩阵没有遗漏，平台差异只位于系统适配与交付层。
-4. 版本检查、前端测试、Rust 测试、打包检查和安装启动验证完成。
-5. 安装包、ZIP/DMG、许可证和 SHA-256 校验文件齐全。
-6. Release 正文记录未完成的架构、签名或实机验证项目。
-
-## 6. 当前整理结果
-
-截至 2026-11-23：
-
-- `main`：共享源码与仓库说明，当前 Windows 业务基线为 `2.0.1`，已补齐 macOS `2.0.0` 的共享能力。
-- `windows`：Windows 长期发布分支，基于 `main` 建立。
-- `macos`：macOS 长期发布分支，由现有 `macos-2.0.0` 整理而来。
-- `v2.0.1-windows`：Windows 当前唯一 Release 和标签。
-- `v2.0.0-macos`：macOS 当前唯一 Release 和标签。
-- 旧版本：从 Git 提交历史追溯，不再保留重复 Release、标签或本地归档目录。
-- `codex/macos-2.0.0`：整理完成后删除，不作为用户入口。
+本次在三个分支同步 B 图标和共享功能，macOS 构建目标为 `2.0.2`，Windows 源码候选为 `2.0.3`。macOS 在本机完成构建与安装更新；Windows 安装包仍须由 Windows 构建机重新生成并验收。在此之前，Windows 已发布的 `2.0.1` 包及其验证记录按原版本保留，不写成新图标安装包已验证。
